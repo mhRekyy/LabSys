@@ -18,14 +18,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onShareClick, onCusto
         </p>
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
-        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={onShareClick}>
+        {/* <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={onShareClick}>
           <Share2 className="mr-2 h-4 w-4" />
           Share
         </Button>
         <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={onCustomizeClick}>
           <Sliders className="mr-2 h-4 w-4" />
           Customize
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ const activityData: ActivityDataItem[] = [
   { name: "Thu", value: 8 },
   { name: "Fri", value: 12 },
   { name: "Sat", value: 5 },
-  { name: "Sun", value: 3 },
+  { name: "Sun", value: 0 },
 ];
 
 const equipmentUsageData: EquipmentUsageItem[] = [
