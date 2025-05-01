@@ -1,16 +1,14 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import LabCard from "@/components/laboratories/LabCard";
+import { Lab } from "@/components/laboratories/types";
 import LabFilters from "@/components/laboratories/LabFilters";
 import LabDetails from "@/components/laboratories/LabDetails";
-import EmptyLabState from "@/components/laboratories/EmptyLabState";
-import { Lab } from "@/components/laboratories/types";
+import { LabFilterProvider, useLabFilters } from "@/components/laboratories/LabFilteringProvider";
+import LabTabsContent from "@/components/laboratories/LabTabsContent";
+import LaboratoriesHeader from "@/components/laboratories/LaboratoriesHeader";
 
 // Mock data for laboratories
 const INITIAL_LABS = [
@@ -113,23 +111,10 @@ const INITIAL_LABS = [
   }
 ];
 
-const Laboratories = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    open: true,
-    closed: true,
-    computer: true,
-    science: true,
-    engineering: true,
-    biology: true,
-    electronics: true
-  });
-  const [laboratories, setLaboratories] = useState(INITIAL_LABS);
+const LaboratoriesContent: React.FC = () => {
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
   const [showLabDetails, setShowLabDetails] = useState(false);
-  const { isAdmin } = useAuth();
+  const { setFilter, setLaboratories } = useLabFilters();
   
   const handleLabCardClick = (lab: Lab) => {
     setSelectedLab(lab);
@@ -145,59 +130,11 @@ const Laboratories = () => {
     toast.success(`Lab status updated to ${newStatus}`);
   };
   
-  const filteredLabs = laboratories.filter(lab => {
-    // Filter by search query
-    const matchesSearch = lab.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         lab.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lab.building.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Filter by status and type
-    const matchesStatus = selectedFilters[lab.status];
-    const matchesType = selectedFilters[lab.type];
-    
-    // Apply tab filter if not "all"
-    const matchesTab = filter === "all" || 
-                      (filter === "open" && lab.status === "open") ||
-                      (filter === "building" && lab.building === "Engineering Building");
-    
-    return matchesSearch && matchesStatus && matchesType && matchesTab;
-  });
-  
-  const toggleFilter = (filterName: string) => {
-    setSelectedFilters({
-      ...selectedFilters,
-      [filterName]: !selectedFilters[filterName]
-    });
-  };
-  
   return (
-    <motion.div 
-      className="space-y-6"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">Laboratories</h1>
-          <p className="text-muted-foreground mt-1">
-            Browse and access campus laboratories and their information.
-          </p>
-        </div>
-        <Button className="w-full sm:w-auto" size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Request Lab Access
-        </Button>
-      </div>
+    <>
+      <LaboratoriesHeader />
       
-      <LabFilters 
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        selectedFilters={selectedFilters}
-        toggleFilter={toggleFilter}
-      />
+      <LabFilters />
       
       <Tabs defaultValue="all" className="w-full" onValueChange={setFilter}>
         <TabsList className="grid grid-cols-3 w-full sm:w-auto mb-4">
@@ -206,59 +143,10 @@ const Laboratories = () => {
           <TabsTrigger value="building" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Engineering</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="all" className="mt-0">
-          {filteredLabs.length === 0 ? (
-            <EmptyLabState />
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredLabs.map((lab) => (
-                <LabCard 
-                  key={lab.id} 
-                  lab={lab} 
-                  onClick={handleLabCardClick}
-                  isAdmin={isAdmin()}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="open" className="mt-0">
-          {filteredLabs.length === 0 ? (
-            <EmptyLabState message="No open laboratories found" />
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredLabs.map((lab) => (
-                <LabCard 
-                  key={lab.id} 
-                  lab={lab} 
-                  onClick={handleLabCardClick}
-                  isAdmin={isAdmin()}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="building" className="mt-0">
-          {filteredLabs.length === 0 ? (
-            <EmptyLabState message="No engineering laboratories found" />
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredLabs.map((lab) => (
-                <LabCard 
-                  key={lab.id} 
-                  lab={lab} 
-                  onClick={handleLabCardClick}
-                  isAdmin={isAdmin()}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        <LabTabsContent 
+          onLabClick={handleLabCardClick}
+          onStatusChange={handleStatusChange}
+        />
       </Tabs>
 
       {/* Lab Details Dialog */}
@@ -266,11 +154,26 @@ const Laboratories = () => {
         {selectedLab && (
           <LabDetails 
             lab={selectedLab}
-            isAdmin={isAdmin()}
+            isAdmin={true}
             onStatusChange={handleStatusChange}
           />
         )}
       </Dialog>
+    </>
+  );
+};
+
+const Laboratories: React.FC = () => {
+  return (
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <LabFilterProvider initialLabs={INITIAL_LABS}>
+        <LaboratoriesContent />
+      </LabFilterProvider>
     </motion.div>
   );
 };

@@ -103,7 +103,7 @@ const LabCard: React.FC<LabCardProps> = ({ lab, onClick, isAdmin, onStatusChange
                   <SelectContent onClick={(e) => e.stopPropagation()}>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    {/* <SelectItem value="maintenance">Maintenance</SelectItem> */}
                   </SelectContent>
                 </Select>
               )}
