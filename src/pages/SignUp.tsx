@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogIn, Beaker, Lock, AtSign, Eye, EyeOff } from "lucide-react";
+import { BookOpen, UserPlus, Beaker, Lock, AtSign, Eye, EyeOff, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 
 // Mock student data - in a real app, this would be in a database
 const MOCK_STUDENTS = [
-  { npm: "123456", password: "password123" },
-  { npm: "654321", password: "password123" },
+  { npm: "123456", email: "student1@example.com", password: "password123", name: "Student One" },
+  { npm: "654321", email: "student2@example.com", password: "password123", name: "Student Two" },
 ];
 
 const containerVariants = {
@@ -36,45 +36,63 @@ const itemVariants = {
   }
 };
 
-const Login = () => {
+const Signup = () => {
   const [npm, setNpm] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Check if dark mode is enabled
     const isDark = document.documentElement.classList.contains('dark');
     setIsDarkMode(isDark);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate network request
-    setTimeout(() => {
-      const student = MOCK_STUDENTS.find(
-        (s) => s.npm === npm && s.password === password
-      );
-      
-      if (student) {
-        toast.success("Login successful! Welcome to LabSys");
-        // Use the login function from AuthContext
-        login(npm);
-        navigate("/");
-      } else {
-        toast.error("Invalid NPM or password, please try again.");
-      }
+
+    // Basic validation
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    // Check for existing user
+    const existingUser = MOCK_STUDENTS.find(
+      (s) => s.npm === npm || s.email === email
+    );
+    
+    if (existingUser) {
+      toast.error("A user with this NPM or email already exists");
+      setIsLoading(false);
+      return;
+    }
+    
+    // Simulate network request for registration
+    setTimeout(() => {
+      // In a real app, this would be an API call to register the user
+      // For now, we'll just simulate success
+      toast.success("Registration successful! Please log in");
+      navigate("/login");
+      setIsLoading(false);
+    }, 1500);
   };
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -104,13 +122,13 @@ const Login = () => {
           <Card className="border-none shadow-xl overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">Student Login</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
               <CardDescription className="text-center">
-                Enter your NPM and password to access the system
+                Register for a new student account to access the system
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleSignup}>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="npm">NPM (Student ID)</Label>
@@ -126,6 +144,38 @@ const Login = () => {
                       />
                     </div>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="name"
+                        placeholder="Enter your full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="h-12 pl-10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="h-12 pl-10"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -133,7 +183,7 @@ const Login = () => {
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
+                        placeholder="Create a password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -152,7 +202,35 @@ const Login = () => {
                       </button>
                     </div>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="h-12 pl-10 pr-10"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={toggleConfirmPasswordVisibility} 
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -169,26 +247,23 @@ const Login = () => {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Logging in...
+                        Creating Account...
                       </div>
                     ) : (
                       <span className="flex items-center justify-center">
-                        <LogIn className="mr-2 h-5 w-5" /> Sign In
+                        <UserPlus className="mr-2 h-5 w-5" /> Create Account
                       </span>
                     )}
                   </Button>
                 </motion.div>
               </form>
             </CardContent>
-            <CardFooter className="flex flex-col border-t pt-4">
+            <CardFooter className="flex flex-col items-center border-t pt-4">
               <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-                Don't have an account?{" "}
-                <Link to="/signup" className="font-medium text-blue-600 hover:underline dark:text-blue-400">
-                  Sign up
+                Already have an account?{" "}
+                <Link to="/login" className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+                  Sign in
                 </Link>
-              </p>
-              <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
-                This is a demo app. Use NPM: 123456, Password: password123
               </p>
             </CardFooter>
           </Card>
@@ -203,4 +278,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;
