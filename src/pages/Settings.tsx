@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,8 +6,26 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Redirect non-admin users
+    if (!isAdmin) {
+      toast.error("You do not have permission to access this page");
+      navigate("/dashboard");
+    }
+  }, [isAdmin, navigate]);
+  
+  // If not admin, don't render the settings page
+  if (!isAdmin) {
+    return null;
+  }
+  
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Settings saved successfully");
@@ -17,9 +34,9 @@ const Settings = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
         <p className="text-muted-foreground mt-1">
-          Manage your inventory system settings and preferences.
+          Manage your laboratory system settings and user permissions.
         </p>
       </div>
 
@@ -27,7 +44,8 @@ const Settings = () => {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsTrigger value="labs">Laboratory Settings</TabsTrigger>
         </TabsList>
         
         <TabsContent value="general" className="space-y-4">
@@ -35,7 +53,7 @@ const Settings = () => {
             <CardHeader>
               <CardTitle>General Settings</CardTitle>
               <CardDescription>
-                Configure the basic settings for your inventory system.
+                Configure the basic settings for your laboratory system.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -51,7 +69,7 @@ const Settings = () => {
                   </div>
                   
                   <div className="grid gap-2">
-                    <Label htmlFor="contact-email">Contact Email</Label>
+                    <Label htmlFor="contact-email">Admin Contact Email</Label>
                     <Input
                       id="contact-email"
                       type="email"
@@ -62,12 +80,12 @@ const Settings = () => {
                   
                   <div className="flex items-center space-x-2">
                     <Switch id="low-stock-alerts" defaultChecked />
-                    <Label htmlFor="low-stock-alerts">Enable low stock alerts</Label>
+                    <Label htmlFor="low-stock-alerts">Enable inventory alerts</Label>
                   </div>
                   
                   <div className="flex items-center space-x-2">
                     <Switch id="maintenance-alerts" defaultChecked />
-                    <Label htmlFor="maintenance-alerts">Enable maintenance reminders</Label>
+                    <Label htmlFor="maintenance-alerts">Enable lab maintenance reminders</Label>
                   </div>
                 </div>
               </form>
@@ -81,12 +99,12 @@ const Settings = () => {
             <CardHeader>
               <CardTitle>System Preferences</CardTitle>
               <CardDescription>
-                Customize how the inventory system works.
+                Customize how the laboratory system works.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="default-view">Default View</Label>
+                <Label htmlFor="default-view">Default Laboratory View</Label>
                 <select
                   id="default-view"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -115,6 +133,11 @@ const Settings = () => {
                 <Switch id="confirm-delete" defaultChecked />
                 <Label htmlFor="confirm-delete">Confirm before deleting items</Label>
               </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch id="student-booking-approval" defaultChecked />
+                <Label htmlFor="student-booking-approval">Require approval for student lab bookings</Label>
+              </div>
             </CardContent>
             <CardFooter>
               <Button onClick={handleSave}>Save Changes</Button>
@@ -134,9 +157,9 @@ const Settings = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="new-item-notification">New Item Added</Label>
+                    <Label htmlFor="new-item-notification">Inventory Updates</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive notifications when new items are added
+                      Receive notifications when inventory changes
                     </p>
                   </div>
                   <Switch id="new-item-notification" defaultChecked />
@@ -154,22 +177,22 @@ const Settings = () => {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="maintenance-notification">Maintenance Due</Label>
+                    <Label htmlFor="booking-notification">Lab Bookings</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive notifications for scheduled maintenance
+                      Receive notifications for new laboratory bookings
                     </p>
                   </div>
-                  <Switch id="maintenance-notification" defaultChecked />
+                  <Switch id="booking-notification" defaultChecked />
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="checkout-notification">Item Checkout</Label>
+                    <Label htmlFor="student-notification">Student Alerts</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive notifications when items are checked out
+                      Send notifications to students for approaching deadlines
                     </p>
                   </div>
-                  <Switch id="checkout-notification" />
+                  <Switch id="student-notification" defaultChecked />
                 </div>
               </div>
             </CardContent>
@@ -179,42 +202,47 @@ const Settings = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="account" className="space-y-4">
+        <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Account Information</CardTitle>
+              <CardTitle>User Management</CardTitle>
               <CardDescription>
-                Update your account details and password.
+                Manage access permissions and user accounts.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  placeholder="John Doe"
-                  defaultValue="John Doe"
-                />
+                <Label htmlFor="user-registration">User Registration</Label>
+                <select
+                  id="user-registration"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  defaultValue="approval"
+                >
+                  <option value="open">Open Registration</option>
+                  <option value="approval">Require Admin Approval</option>
+                  <option value="closed">Closed (Admin Only)</option>
+                </select>
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="max-borrowings">Maximum Borrowings Per Student</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.edu"
-                  defaultValue="john@example.edu"
+                  id="max-borrowings"
+                  type="number"
+                  defaultValue="5"
+                  min="1"
+                  max="20"
                 />
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  placeholder="Administrator"
-                  defaultValue="Administrator"
-                  disabled
-                />
+              <div className="flex items-center space-x-2">
+                <Switch id="auto-suspend" />
+                <Label htmlFor="auto-suspend">Auto-suspend accounts with overdue items</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch id="allow-multiple-bookings" defaultChecked />
+                <Label htmlFor="allow-multiple-bookings">Allow multiple lab bookings per student</Label>
               </div>
             </CardContent>
             <CardFooter>
@@ -224,29 +252,90 @@ const Settings = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
+              <CardTitle>Admin Access</CardTitle>
               <CardDescription>
-                Update your password to keep your account secure.
+                Manage administrator access and permissions.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <Input id="current-password" type="password" />
+                <Label htmlFor="admin-role">Default Admin Role</Label>
+                <select
+                  id="admin-role"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  defaultValue="full"
+                >
+                  <option value="full">Full Access</option>
+                  <option value="inventory">Inventory Management Only</option>
+                  <option value="bookings">Bookings Management Only</option>
+                  <option value="readonly">Read-Only</option>
+                </select>
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input id="new-password" type="password" />
+              <div className="flex items-center space-x-2">
+                <Switch id="require-2fa" />
+                <Label htmlFor="require-2fa">Require two-factor authentication for admins</Label>
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input id="confirm-password" type="password" />
+              <div className="flex items-center space-x-2">
+                <Switch id="admin-logs" defaultChecked />
+                <Label htmlFor="admin-logs">Keep logs of admin actions</Label>
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSave}>Change Password</Button>
+              <Button onClick={handleSave}>Save Changes</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="labs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Laboratory Management</CardTitle>
+              <CardDescription>
+                Configure laboratory availability and settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="booking-window">Booking Window (days in advance)</Label>
+                <Input
+                  id="booking-window"
+                  type="number"
+                  defaultValue="14"
+                  min="1"
+                  max="90"
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="max-duration">Maximum Booking Duration (hours)</Label>
+                <Input
+                  id="max-duration"
+                  type="number"
+                  defaultValue="4"
+                  min="1"
+                  max="24"
+                />
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch id="weekend-bookings" />
+                <Label htmlFor="weekend-bookings">Allow weekend bookings</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch id="auto-approve-faculty" defaultChecked />
+                <Label htmlFor="auto-approve-faculty">Auto-approve faculty bookings</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch id="enforce-capacity" defaultChecked />
+                <Label htmlFor="enforce-capacity">Enforce lab capacity limits</Label>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave}>Save Changes</Button>
             </CardFooter>
           </Card>
         </TabsContent>

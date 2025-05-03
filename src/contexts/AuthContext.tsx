@@ -5,16 +5,17 @@ interface User {
   npm: string;
   name?: string;
   email?: string;
-  role: 'student' | 'admin';
+  role: 'mahasiswa' | 'aslab';
 }
 
 interface AuthContextType {
   isLoggedIn: boolean;
   studentNpm: string | null;
   user: User | null;
-  login: (npm: string) => void;
+  login: (npm: string, role: 'mahasiswa' | 'aslab') => void;
   logout: () => void;
-  isAdmin: () => boolean;
+  isAdmin: boolean;
+  isStudent: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -23,38 +24,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [studentNpm, setStudentNpm] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isStudent, setIsStudent] = useState<boolean>(false);
 
   useEffect(() => {
     // Check if user is already logged in
     const loggedIn = localStorage.getItem("isLoggedIn") === "true";
     const npm = localStorage.getItem("studentNpm");
-    const userRole = localStorage.getItem("userRole") || "student";
+    const userRole = localStorage.getItem("userRole") || "mahasiswa";
     
     setIsLoggedIn(loggedIn);
     setStudentNpm(npm);
     
     if (npm) {
+      const role = userRole as 'mahasiswa' | 'aslab';
       setUser({
         npm,
-        role: userRole as 'student' | 'admin'
+        role
       });
+      
+      // Set role-based flags
+      setIsAdmin(role === 'aslab');
+      setIsStudent(role === 'mahasiswa');
     }
   }, []);
 
-  const login = (npm: string) => {
-    // For the demo, NPM 123456 will be an admin, others will be students
-    const userRole = npm === "123456" ? "admin" : "student";
-    
+  const login = (npm: string, role: 'mahasiswa' | 'aslab') => {
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("studentNpm", npm);
-    localStorage.setItem("userRole", userRole);
+    localStorage.setItem("userRole", role);
     
     setIsLoggedIn(true);
     setStudentNpm(npm);
     setUser({
       npm,
-      role: userRole as 'student' | 'admin'
+      role
     });
+    
+    // Set role-based flags
+    setIsAdmin(role === 'aslab');
+    setIsStudent(role === 'mahasiswa');
   };
 
   const logout = () => {
@@ -65,14 +74,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoggedIn(false);
     setStudentNpm(null);
     setUser(null);
-  };
-  
-  const isAdmin = () => {
-    return user?.role === 'admin';
+    setIsAdmin(false);
+    setIsStudent(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, studentNpm, user, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ 
+      isLoggedIn, 
+      studentNpm, 
+      user, 
+      login, 
+      logout, 
+      isAdmin, 
+      isStudent 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -92,6 +107,22 @@ export const RequireAuth = ({ children }: { children: React.ReactNode }) => {
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Add a component to require admin access
+export const RequireAdmin = ({ children }: { children: React.ReactNode }) => {
+  const { isLoggedIn, isAdmin } = useAuth();
+  const location = useLocation();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

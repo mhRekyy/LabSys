@@ -1,169 +1,175 @@
 import React from "react";
+import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Building, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
-interface LabAssistant {
-  id: number;
-  name: string;
-  role: string;
-  avatar: string;
-}
-
-interface LabScheduleDay {
-  day: string;
-  slots: string[];
-}
-
-interface Lab {
-  id: number;
-  name: string;
-  building: string;
-  floor: number;
-  room: string;
-  status: string;
-  type: string;
-  description: string;
-  hours: string;
-  capacity: number;
-  assistants: LabAssistant[];
-  equipment: string[];
-  rating: number;
-  schedule?: LabScheduleDay[];
-}
+import { Calendar, Clock, Users, Star, MapPin, InfoIcon, Shield } from "lucide-react";
+import { Lab } from "./types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LabDetailsProps {
   lab: Lab;
-  isAdmin: boolean;
-  onStatusChange: (labId: number, status: string) => void;
+  onStatusChange?: (labId: number, newStatus: string) => void;
+  onBookLab?: () => void;
 }
 
-const LabDetails: React.FC<LabDetailsProps> = ({ lab, isAdmin, onStatusChange }) => {
+const LabDetails: React.FC<LabDetailsProps> = ({ 
+  lab, 
+  onStatusChange,
+  onBookLab
+}) => {
+  const { isAdmin } = useAuth();
+  
+  const toggleStatus = () => {
+    if (onStatusChange) {
+      onStatusChange(lab.id, lab.status === "open" ? "closed" : "open");
+    }
+  };
+  
   return (
-    <DialogContent className="max-w-3xl">
+    <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle className="text-2xl flex items-center">
-          {lab.name}
-          <Badge 
-            className={`ml-3 ${
-              lab.status === 'open' ? 'bg-green-500' : 
-              lab.status === 'closed' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}
-          >
-            {lab.status.charAt(0).toUpperCase() + lab.status.slice(1)}
-          </Badge>
-        </DialogTitle>
-        <DialogDescription>{lab.description}</DialogDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <DialogTitle className="text-xl">{lab.name}</DialogTitle>
+            <DialogDescription>{lab.building}, Room {lab.room}</DialogDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={lab.status === "open" ? "default" : "secondary"}>
+              {lab.status === "open" ? "Open" : "Closed"}
+            </Badge>
+            {isAdmin && (
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900 border-purple-200 dark:border-purple-800">
+                <Shield className="h-3 w-3 mr-1" />
+                Admin
+              </Badge>
+            )}
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={toggleStatus}>
+                {lab.status === "open" ? "Set to Closed" : "Set to Open"}
+              </Button>
+            )}
+          </div>
+        </div>
       </DialogHeader>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Laboratory Information</h3>
+      
+      <Tabs defaultValue="info" className="mt-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="info">Information</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="equipment">Equipment</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="info" className="space-y-4 mt-4">
+          <div>
+            <h4 className="font-medium mb-1 flex items-center gap-1">
+              <InfoIcon className="h-4 w-4" />
+              About
+            </h4>
+            <p className="text-sm text-muted-foreground">{lab.description}</p>
+          </div>
           
-          <div className="space-y-4">
-            <div className="flex items-start">
-              <Building className="h-5 w-5 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
-              <div>
-                <p>{lab.building}</p>
-                {lab.floor && lab.room && (
-                  <p className="text-sm text-muted-foreground">
-                    Floor {lab.floor}, Room {lab.room}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
-              <p>Operating Hours: {lab.hours}</p>
-            </div>
-            
-            <div className="flex items-center">
-              <Users className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
-              <p>Capacity: {lab.capacity} students</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium mb-1 flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                Hours
+              </h4>
+              <p className="text-sm">{lab.hours}</p>
             </div>
             
             <div>
-              <h4 className="font-medium mb-2">Available Equipment</h4>
-              <div className="flex flex-wrap gap-2">
-                {lab.equipment.map((item, index) => (
-                  <Badge key={index} variant="outline" className="bg-primary/10">{item}</Badge>
+              <h4 className="font-medium mb-1 flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                Capacity
+              </h4>
+              <p className="text-sm">{lab.capacity} people</p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-1 flex items-center gap-1">
+              <MapPin className="h-4 w-4" />
+              Location
+            </h4>
+            <p className="text-sm">{lab.building}, Floor {lab.floor}, Room {lab.room}</p>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-1 flex items-center gap-1">
+              <Star className="h-4 w-4" />
+              Rating
+            </h4>
+            <div className="flex items-center">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star 
+                    key={i} 
+                    className={`h-4 w-4 ${i < Math.floor(lab.rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                  />
                 ))}
               </div>
+              <span className="text-sm ml-2">{lab.rating.toFixed(1)}</span>
             </div>
           </div>
-        </div>
+        </TabsContent>
         
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Schedule</h3>
-          
+        <TabsContent value="schedule" className="space-y-4 mt-4">
           {lab.schedule ? (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="py-2 px-3 text-left text-sm">Day</th>
-                    <th className="py-2 px-3 text-left text-sm">Available Times</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {lab.schedule.map((day, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
-                      <td className="py-2 px-3">{day.day}</td>
-                      <td className="py-2 px-3">
-                        {day.slots.map((slot, i) => (
-                          <span key={i} className="block text-sm">{slot}</span>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No schedule information available</p>
-          )}
-          
-          <div className="mt-5">
-            <h4 className="font-medium mb-2">Lab Staff</h4>
-            <div className="space-y-3">
-              {lab.assistants.map((assistant) => (
-                <div key={assistant.id} className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={assistant.avatar} />
-                    <AvatarFallback>{assistant.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{assistant.name}</p>
-                    <p className="text-sm text-muted-foreground">{assistant.role}</p>
-                  </div>
+            lab.schedule.map((day) => (
+              <div key={day.day} className="flex gap-2">
+                <div className="font-medium w-24">{day.day}:</div>
+                <div className="text-sm">
+                  {day.slots.length > 0 ? (
+                    day.slots.join(", ")
+                  ) : (
+                    <span className="text-muted-foreground">No sessions</span>
+                  )}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No schedule information available</p>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="equipment" className="mt-4">
+          <div className="grid grid-cols-2 gap-2">
+            {lab.equipment.map((item) => (
+              <div key={item} className="bg-muted p-2 rounded-md text-sm">
+                {item}
+              </div>
+            ))}
           </div>
+        </TabsContent>
+      </Tabs>
+      
+      <div className="mt-6">
+        <h4 className="font-medium mb-2">Lab Assistants</h4>
+        <div className="flex gap-3">
+          {lab.assistants.map((assistant) => (
+            <div key={assistant.id} className="flex flex-col items-center">
+              <Avatar className="h-10 w-10 mb-1">
+                <AvatarImage src={assistant.avatar} />
+                <AvatarFallback>{assistant.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+              </Avatar>
+              <div className="text-xs text-center">{assistant.name}</div>
+              <div className="text-xs text-muted-foreground text-center">{assistant.role}</div>
+            </div>
+          ))}
         </div>
       </div>
-
-      <DialogFooter>
-        {isAdmin && (
-          <Select 
-            defaultValue={lab.status}
-            onValueChange={(value) => onStatusChange(lab.id, value)}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-            </SelectContent>
-          </Select>
+      
+      <DialogFooter className="mt-6">
+        {lab.status === "open" && onBookLab && (
+          <Button onClick={onBookLab}>
+            {isAdmin ? "Manage Laboratory" : "Book This Laboratory"}
+          </Button>
         )}
-        <Button>Book Laboratory</Button>
+        {lab.status === "closed" && (
+          <Button disabled>Currently Closed</Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );

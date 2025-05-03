@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,6 @@ import {
   X,
   History,
   LogOut,
-  Search,
-  ChevronRight,
   Bell,
   Sun,
   Moon
@@ -30,7 +27,6 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 
@@ -88,10 +84,9 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const { logout, studentNpm } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { logout, studentNpm, isAdmin, user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Toggle dark mode
   useEffect(() => {
@@ -112,13 +107,17 @@ const Layout = ({ children }: LayoutProps) => {
     navigate("/login");
   };
 
+  // Define navigation items based on user role
   const navItems = [
     { to: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" />, label: "Dashboard", notifications: 2 },
     { to: "/inventory", icon: <Package className="h-5 w-5" />, label: "Inventory" },
     { to: "/borrowing-history", icon: <History className="h-5 w-5" />, label: "Borrowing History" },
     { to: "/laboratories", icon: <Microscope className="h-5 w-5" />, label: "Laboratories", notifications: 1 },
-    { to: "/categories", icon: <Tags className="h-5 w-5" />, label: "Categories" },
-    { to: "/settings", icon: <Settings className="h-5 w-5" />, label: "Settings" },
+  ];
+  
+  // Admin-only navigation items
+  const adminNavItems = [
+    { to: "/settings", icon: <Settings className="h-5 w-5" />, label: "Admin Settings" },
   ];
 
   return (
@@ -185,24 +184,23 @@ const Layout = ({ children }: LayoutProps) => {
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sidebar-foreground font-medium">Student</p>
+              <p className="text-sidebar-foreground font-medium">
+                {isAdmin ? "Lab Assistant" : "Student"}
+              </p>
               <p className="text-sidebar-foreground/70 text-sm">NPM: {studentNpm || "N/A"}</p>
             </div>
           </div>
           
-          <div className="mt-4 relative">
-            <Input 
-              type="text" 
-              placeholder="Search..." 
-              className="w-full pl-9 bg-sidebar-accent/10 border-sidebar-border placeholder:text-sidebar-foreground/50"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
+          {/* Role badge */}
+          <div className="mt-3 flex justify-center">
+            <Badge variant={isAdmin ? "destructive" : "default"} className="px-3 py-1">
+              {user?.role === 'aslab' ? 'Admin / Aslab' : 'Mahasiswa'}
+            </Badge>
           </div>
         </div>
         
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+          {/* Common navigation items for all users */}
           {navItems.map((item) => (
             <NavItem
               key={item.to}
@@ -211,6 +209,17 @@ const Layout = ({ children }: LayoutProps) => {
               label={item.label}
               isActive={location.pathname === item.to || (item.to === "/dashboard" && location.pathname === "/")}
               notifications={item.notifications}
+            />
+          ))}
+          
+          {/* Admin-only navigation items */}
+          {isAdmin && adminNavItems.map((item) => (
+            <NavItem
+              key={item.to}
+              to={item.to}
+              icon={item.icon}
+              label={item.label}
+              isActive={location.pathname === item.to}
             />
           ))}
         </nav>
@@ -283,7 +292,6 @@ const Layout = ({ children }: LayoutProps) => {
               {location.pathname === "/" || location.pathname === "/dashboard" ? (
                 "Dashboard"
               ) : location.pathname.split("/")[1].charAt(0).toUpperCase() + location.pathname.split("/")[1].slice(1).replace(/-/g, " ")}
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
           
@@ -323,7 +331,9 @@ const Layout = ({ children }: LayoutProps) => {
                       {studentNpm ? studentNpm.substring(0, 2) : "ST"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:inline-block">Student</span>
+                  <span className="hidden md:inline-block">
+                    {isAdmin ? "Admin" : "Student"}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -332,9 +342,11 @@ const Layout = ({ children }: LayoutProps) => {
                 <DropdownMenuItem className="cursor-pointer">
                   Profile Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">
-                  Borrowed Equipment
-                </DropdownMenuItem>
+                {!isAdmin && (
+                  <DropdownMenuItem className="cursor-pointer">
+                    My Borrowings
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-500" onClick={handleLogout}>
                   Logout

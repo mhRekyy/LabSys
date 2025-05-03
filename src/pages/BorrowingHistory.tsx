@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -28,14 +27,16 @@ import {
 import { Search, Filter, Package, Calendar, Clock, User } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Mock data for borrowing history
-const borrowingHistoryData = [
+const allBorrowingHistoryData = [
   {
     id: "1",
     itemId: "item-1",
     itemName: "Laptop Dell XPS 13",
     borrower: "John Smith",
+    borrowerNpm: "123456",
     borrowDate: "2025-04-01T10:00:00",
     returnDate: "2025-04-08T16:30:00",
     status: "returned",
@@ -47,6 +48,7 @@ const borrowingHistoryData = [
     itemId: "item-3",
     itemName: "DSLR Camera",
     borrower: "Emily Johnson",
+    borrowerNpm: "654321",
     borrowDate: "2025-04-05T09:15:00",
     returnDate: null,
     status: "borrowed",
@@ -58,6 +60,7 @@ const borrowingHistoryData = [
     itemId: "item-7",
     itemName: "Projector",
     borrower: "Michael Brown",
+    borrowerNpm: "123456",
     borrowDate: "2025-03-28T13:45:00",
     returnDate: "2025-04-01T11:20:00",
     status: "returned",
@@ -69,6 +72,7 @@ const borrowingHistoryData = [
     itemId: "item-12",
     itemName: "iPad Pro",
     borrower: "Sarah Davis",
+    borrowerNpm: "987654",
     borrowDate: "2025-04-07T14:30:00",
     returnDate: null,
     status: "borrowed",
@@ -80,6 +84,7 @@ const borrowingHistoryData = [
     itemId: "item-15",
     itemName: "Microphone Set",
     borrower: "David Wilson",
+    borrowerNpm: "654321",
     borrowDate: "2025-03-25T10:00:00",
     returnDate: "2025-03-27T15:45:00",
     status: "returned",
@@ -92,6 +97,22 @@ const BorrowingHistory = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sortBy, setSortBy] = useState("recent");
+  const [borrowingHistoryData, setBorrowingHistoryData] = useState([]);
+  const { isAdmin, studentNpm } = useAuth();
+
+  // Load the appropriate borrowing history based on user role
+  useEffect(() => {
+    if (isAdmin) {
+      // Admin sees all borrowings
+      setBorrowingHistoryData(allBorrowingHistoryData);
+    } else {
+      // Students only see their own borrowings
+      const filteredData = allBorrowingHistoryData.filter(
+        record => record.borrowerNpm === studentNpm
+      );
+      setBorrowingHistoryData(filteredData);
+    }
+  }, [isAdmin, studentNpm]);
 
   // Filter and sort history items
   const filteredHistory = borrowingHistoryData
@@ -118,6 +139,14 @@ const BorrowingHistory = () => {
     });
 
   const handleReturn = (id: string) => {
+    // Update the borrowing status
+    const updatedData = borrowingHistoryData.map(item => 
+      item.id === id 
+        ? { ...item, status: "returned", returnDate: new Date().toISOString() } 
+        : item
+    );
+    
+    setBorrowingHistoryData(updatedData);
     toast.success("Item marked as returned");
   };
 
@@ -127,7 +156,10 @@ const BorrowingHistory = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Borrowing History</h1>
           <p className="text-muted-foreground mt-1">
-            Track all borrowing and returns of inventory items.
+            {isAdmin 
+              ? "Track all borrowing and returns of inventory items across the system."
+              : "Track your borrowing history and returns."
+            }
           </p>
         </div>
         <Button className="w-full sm:w-auto" size="sm" asChild>
@@ -166,7 +198,7 @@ const BorrowingHistory = () => {
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all-status">All Status</SelectItem>
+                    <SelectItem value="">All Status</SelectItem>
                     <SelectItem value="borrowed">Currently Borrowed</SelectItem>
                     <SelectItem value="returned">Returned</SelectItem>
                   </SelectContent>
@@ -194,23 +226,25 @@ const BorrowingHistory = () => {
         <div className="md:col-span-4 lg:col-span-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Borrowing Records</CardTitle>
+              <CardTitle className="text-lg">
+                {isAdmin ? "All Borrowing Records" : "Your Borrowing Records"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Borrower</TableHead>
-                      <TableHead>Dates</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredHistory.length > 0 ? (
-                      filteredHistory.map((record) => (
+              {filteredHistory.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        {isAdmin && <TableHead>Borrower</TableHead>}
+                        <TableHead>Dates</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredHistory.map((record) => (
                         <TableRow key={record.id}>
                           <TableCell>
                             <div>
@@ -229,12 +263,17 @@ const BorrowingHistory = () => {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                              {record.borrower}
-                            </div>
-                          </TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex items-center">
+                                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                                {record.borrower}
+                                <div className="text-xs ml-2 text-muted-foreground">
+                                  (NPM: {record.borrowerNpm})
+                                </div>
+                              </div>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div className="space-y-1">
                               <div className="flex items-center text-xs">
@@ -283,23 +322,29 @@ const BorrowingHistory = () => {
                             </Button>
                           </TableCell>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
-                          <div className="flex flex-col items-center justify-center text-center p-4">
-                            <Filter className="h-8 w-8 text-muted-foreground mb-2" />
-                            <h3 className="text-lg font-medium">No records found</h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Try adjusting your search or filter to find what you're looking for.
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="h-24 flex flex-col items-center justify-center text-center p-4">
+                  <div className="flex flex-col items-center justify-center text-center p-4">
+                    <Filter className="h-8 w-8 text-muted-foreground mb-2" />
+                    <h3 className="text-lg font-medium">
+                      {isAdmin 
+                        ? "No records found" 
+                        : "You haven't borrowed any items yet"
+                      }
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {isAdmin 
+                        ? "Try adjusting your search or filter to find what you're looking for."
+                        : "Visit the inventory page to borrow laboratory equipment."
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

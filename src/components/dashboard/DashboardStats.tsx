@@ -4,6 +4,10 @@ import { Progress } from "@/components/ui/progress";
 import { Package, Clock, Calendar, CheckCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
+interface DashboardStatsProps {
+  bookingsCount?: number;
+}
+
 const cardVariants = {
   hidden: { y: 20, opacity: 0 },
   visible: { 
@@ -17,7 +21,7 @@ const cardVariants = {
   }
 };
 
-const DashboardStats: React.FC = () => {
+const DashboardStats: React.FC<DashboardStatsProps> = ({ bookingsCount = 0 }) => {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <motion.div variants={cardVariants}>
@@ -29,11 +33,11 @@ const DashboardStats: React.FC = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{bookingsCount}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              +2 from last week
+              {bookingsCount > 0 ? `+${bookingsCount} from last week` : "No bookings yet"}
             </p>
-            <Progress value={75} className="h-2 mt-3" />
+            <Progress value={bookingsCount > 0 ? 75 : 0} className="h-2 mt-3" />
           </CardContent>
         </Card>
       </motion.div>

@@ -1,5 +1,4 @@
 import React from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { Lab } from "./types";
 import LabCard from "./LabCard";
 import EmptyLabState from "./EmptyLabState";
@@ -17,8 +16,6 @@ const LabGrid: React.FC<LabGridProps> = ({
   onStatusChange,
   emptyMessage 
 }) => {
-  const { isAdmin } = useAuth();
-
   if (labs.length === 0) {
     return <EmptyLabState message={emptyMessage} />;
   }
@@ -30,7 +27,6 @@ const LabGrid: React.FC<LabGridProps> = ({
           key={lab.id} 
           lab={lab} 
           onClick={onLabClick}
-          isAdmin={isAdmin()}
           onStatusChange={onStatusChange}
         />
       ))}

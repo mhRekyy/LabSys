@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Lab } from "@/components/laboratories/types";
+import { BookingItem } from "@/components/dashboard/types";
 import LabFilters from "@/components/laboratories/LabFilters";
 import LabDetails from "@/components/laboratories/LabDetails";
 import { LabFilterProvider, useLabFilters } from "@/components/laboratories/LabFilteringProvider";
 import LabTabsContent from "@/components/laboratories/LabTabsContent";
 import LaboratoriesHeader from "@/components/laboratories/LaboratoriesHeader";
+import BookingForm from "@/components/laboratories/BookingForm";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Mock data for laboratories
 const INITIAL_LABS = [
@@ -114,7 +119,20 @@ const INITIAL_LABS = [
 const LaboratoriesContent: React.FC = () => {
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
   const [showLabDetails, setShowLabDetails] = useState(false);
+  const [showBookingDialog, setShowBookingDialog] = useState(false);
   const { setFilter, setLaboratories } = useLabFilters();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  
+  useEffect(() => {
+    // Check for filter parameter in URL
+    const params = new URLSearchParams(location.search);
+    const filterParam = params.get("filter");
+    if (filterParam) {
+      setFilter(filterParam);
+    }
+  }, [location.search, setFilter]);
   
   const handleLabCardClick = (lab: Lab) => {
     setSelectedLab(lab);
@@ -122,12 +140,54 @@ const LaboratoriesContent: React.FC = () => {
   };
 
   const handleStatusChange = (labId: number, newStatus: string) => {
+    if (!isAdmin) {
+      toast.error("You don't have permission to change lab status");
+      return;
+    }
+    
     setLaboratories(labs => 
       labs.map(lab => 
         lab.id === labId ? { ...lab, status: newStatus } : lab
       )
     );
     toast.success(`Lab status updated to ${newStatus}`);
+  };
+  
+  const handleBookLab = (lab: Lab) => {
+    setSelectedLab(lab);
+    setShowLabDetails(false);
+    setShowBookingDialog(true);
+  };
+
+  const handleBookingSubmit = (data: any) => {
+    if (!selectedLab) return;
+
+    // Create a new booking
+    const newBooking: BookingItem = {
+      id: Date.now(),
+      lab: selectedLab.name,
+      equipment: data.equipment || "General access",
+      date: data.date,
+      time: data.timeSlot,
+      status: "confirmed"
+    };
+
+    // Get existing bookings or initialize empty array
+    const existingBookings = localStorage.getItem('userBookings');
+    const bookings = existingBookings ? JSON.parse(existingBookings) : [];
+    
+    // Add new booking
+    const updatedBookings = [...bookings, newBooking];
+    
+    // Save to localStorage
+    localStorage.setItem('userBookings', JSON.stringify(updatedBookings));
+    
+    // Close dialog and show success message
+    setShowBookingDialog(false);
+    toast.success("Booking created successfully!");
+    
+    // Navigate to dashboard
+    navigate("/dashboard");
   };
   
   return (
@@ -154,10 +214,25 @@ const LaboratoriesContent: React.FC = () => {
         {selectedLab && (
           <LabDetails 
             lab={selectedLab}
-            isAdmin={true}
             onStatusChange={handleStatusChange}
+            onBookLab={() => handleBookLab(selectedLab)}
           />
         )}
+      </Dialog>
+      
+      {/* Booking Dialog */}
+      <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Book {selectedLab?.name}</DialogTitle>
+            <DialogDescription>
+              Select date and time for your laboratory session
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLab && (
+            <BookingForm lab={selectedLab} onSubmit={handleBookingSubmit} />
+          )}
+        </DialogContent>
       </Dialog>
     </>
   );

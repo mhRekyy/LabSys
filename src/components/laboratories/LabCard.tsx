@@ -1,189 +1,98 @@
 import React from "react";
-import { Building, Clock, Users, Star, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// Lab card animation variants
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 30 }
-  },
-  hover: { 
-    y: -5,
-    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-    transition: { type: "spring", stiffness: 400, damping: 20 }
-  }
-};
-
-interface LabAssistant {
-  id: number;
-  name: string;
-  role: string;
-  avatar: string;
-}
-
-interface LabScheduleDay {
-  day: string;
-  slots: string[];
-}
-
-interface Lab {
-  id: number;
-  name: string;
-  building: string;
-  floor: number;
-  room: string;
-  status: string;
-  type: string;
-  description: string;
-  hours: string;
-  capacity: number;
-  assistants: LabAssistant[];
-  equipment: string[];
-  rating: number;
-  schedule?: LabScheduleDay[];
-}
+import { Button } from "@/components/ui/button";
+import { MapPin, Clock, Users, BookOpen, Shield } from "lucide-react";
+import { Lab } from "./types";
+import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LabCardProps {
   lab: Lab;
   onClick: (lab: Lab) => void;
-  isAdmin: boolean;
   onStatusChange: (labId: number, newStatus: string) => void;
 }
 
-const LabCard: React.FC<LabCardProps> = ({ lab, onClick, isAdmin, onStatusChange }) => {
-  const statusColors = {
-    open: "bg-green-500",
-    closed: "bg-red-500",
-    maintenance: "bg-yellow-500"
-  };
+const LabCard: React.FC<LabCardProps> = ({ lab, onClick, onStatusChange }) => {
+  const { isAdmin } = useAuth();
   
-  const handleStatusChange = (e: React.MouseEvent, value: string) => {
+  const handleStatusToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onStatusChange(lab.id, value);
+    onStatusChange(lab.id, lab.status === "open" ? "closed" : "open");
   };
   
   return (
     <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      whileHover="hover"
-      onClick={() => onClick(lab)}
-      className="cursor-pointer"
+      whileHover={{ y: -5 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
     >
-      <Card className="h-full border-none shadow-md hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-        <div className={`absolute top-0 left-0 right-0 h-1 ${statusColors[lab.status]}`}></div>
-        
+      <Card 
+        className="h-full cursor-pointer hover:border-primary transition-all" 
+        onClick={() => onClick(lab)}
+      >
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
-              <Badge className={`mb-2 ${lab.status === 'open' ? 'bg-green-500' : lab.status === 'closed' ? 'bg-red-500' : 'bg-yellow-500'}`}>
-                {lab.status.charAt(0).toUpperCase() + lab.status.slice(1)}
+              <CardTitle className="text-xl">{lab.name}</CardTitle>
+              <CardDescription>{lab.building}, Room {lab.room}</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={lab.status === "open" ? "default" : "secondary"}>
+                {lab.status === "open" ? "Open" : "Closed"}
               </Badge>
               {isAdmin && (
-                <Select 
-                  defaultValue={lab.status} 
-                  onValueChange={(value) => onStatusChange(lab.id, value)}
-                >
-                  <SelectTrigger 
-                    className="w-[120px] h-8 text-xs mt-1 mb-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <SelectValue placeholder="Change Status" />
-                  </SelectTrigger>
-                  <SelectContent onClick={(e) => e.stopPropagation()}>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                    {/* <SelectItem value="maintenance">Maintenance</SelectItem> */}
-                  </SelectContent>
-                </Select>
+                <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900 border-purple-200 dark:border-purple-800">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Admin
+                </Badge>
               )}
-              <CardTitle className="text-xl flex items-center">
-                {lab.name}
-              </CardTitle>
-              <CardDescription className="mt-1 line-clamp-2">
-                {lab.description}
-              </CardDescription>
             </div>
           </div>
         </CardHeader>
-        
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-start">
-              <Building className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
-              <div>
-                <p className="text-sm">{lab.building}</p>
-                {lab.floor && lab.room && (
-                  <p className="text-xs text-muted-foreground">
-                    Floor {lab.floor}, Room {lab.room}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
-              <p className="text-sm">{lab.hours}</p>
-            </div>
-            
-            <div className="flex items-center">
-              <Users className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
-              <p className="text-sm">Capacity: {lab.capacity} students</p>
-            </div>
-            
-            <div className="flex items-center">
-              <Star className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
-              <p className="text-sm">{lab.rating} / 5.0</p>
-            </div>
-            
-            <div className="flex mt-2">
-              <p className="text-xs font-medium text-muted-foreground mr-2">Lab Assistants:</p>
-              <div className="flex -space-x-2">
-                {lab.assistants.map((assistant) => (
-                  <HoverCard key={assistant.id}>
-                    <HoverCardTrigger>
-                      <Avatar className="h-6 w-6 border-2 border-background">
-                        <AvatarImage src={assistant.avatar} />
-                        <AvatarFallback>{assistant.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-64">
-                      <div className="flex justify-between space-x-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={assistant.avatar} />
-                          <AvatarFallback>{assistant.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-semibold">{assistant.name}</h4>
-                          <p className="text-xs text-muted-foreground">{assistant.role}</p>
-                          <div className="flex items-center pt-1">
-                            <span className="text-xs text-muted-foreground">Available now</span>
-                            <span className="ml-1 h-2 w-2 rounded-full bg-green-500"></span>
-                          </div>
-                        </div>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                ))}
-              </div>
-            </div>
+        <CardContent className="space-y-2">
+          <div className="flex items-center gap-1 text-sm">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground mr-0.5" />
+            <span>Floor {lab.floor}</span>
+          </div>
+          <div className="flex items-center gap-1 text-sm">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground mr-0.5" />
+            <span>{lab.hours}</span>
+          </div>
+          <div className="flex items-center gap-1 text-sm">
+            <Users className="h-3.5 w-3.5 text-muted-foreground mr-0.5" />
+            <span>{lab.capacity} people</span>
+          </div>
+          
+          <div className="mt-2 flex flex-wrap gap-1">
+            {lab.equipment.slice(0, 2).map((item) => (
+              <Badge variant="outline" key={item} className="text-xs">
+                {item}
+              </Badge>
+            ))}
+            {lab.equipment.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{lab.equipment.length - 2} more
+              </Badge>
+            )}
           </div>
         </CardContent>
-        
-        <CardFooter className="pt-0 flex justify-end">
-          <Button variant="ghost" size="sm" className="text-primary gap-1">
-            View Details <ChevronRight className="h-4 w-4" />
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" size="sm" className="gap-1">
+            <BookOpen className="h-3.5 w-3.5" />
+            Details
           </Button>
+          
+          {isAdmin && (
+            <Button 
+              variant={lab.status === "open" ? "destructive" : "default"} 
+              size="sm" 
+              onClick={handleStatusToggle}
+            >
+              {lab.status === "open" ? "Close" : "Open"}
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </motion.div>

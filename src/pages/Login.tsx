@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogIn, Beaker, Lock, AtSign, Eye, EyeOff } from "lucide-react";
+import { BookOpen, LogIn, Beaker, Lock, AtSign, Eye, EyeOff, UserCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Mock student data - in a real app, this would be in a database
 const MOCK_STUDENTS = [
-  { npm: "123456", password: "password123" },
-  { npm: "654321", password: "password123" },
+  { npm: "123456", password: "password123", role: "mahasiswa" },
+  { npm: "654321", password: "password123", role: "aslab" },
+  { npm: "111111", password: "password123", role: "mahasiswa" },
+  { npm: "222222", password: "password123", role: "aslab" },
 ];
 
 const containerVariants = {
@@ -39,6 +42,7 @@ const itemVariants = {
 const Login = () => {
   const [npm, setNpm] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"mahasiswa" | "aslab">("mahasiswa");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -62,9 +66,9 @@ const Login = () => {
       );
       
       if (student) {
-        toast.success("Login successful! Welcome to LabSys");
-        // Use the login function from AuthContext
-        login(npm);
+        toast.success(`Login successful as ${role === "mahasiswa" ? "Student" : "Lab Assistant"}! Welcome to LabSys`);
+        // Use the login function from AuthContext with selected role
+        login(npm, role);
         navigate("/");
       } else {
         toast.error("Invalid NPM or password, please try again.");
@@ -104,7 +108,7 @@ const Login = () => {
           <Card className="border-none shadow-xl overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">Student Login</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
               <CardDescription className="text-center">
                 Enter your NPM and password to access the system
               </CardDescription>
@@ -152,6 +156,30 @@ const Login = () => {
                       </button>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>Select Role</Label>
+                    <RadioGroup
+                      value={role}
+                      onValueChange={(value) => setRole(value as "mahasiswa" | "aslab")}
+                      className="flex flex-col space-y-1"
+                    >
+                      <div className="flex items-center space-x-3 rounded-md border p-3 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <RadioGroupItem value="mahasiswa" id="mahasiswa" className="border-slate-300" />
+                        <Label htmlFor="mahasiswa" className="flex items-center cursor-pointer">
+                          <UserCircle className="h-5 w-5 mr-2 text-blue-500" />
+                          Mahasiswa (Student)
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 rounded-md border p-3 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <RadioGroupItem value="aslab" id="aslab" className="border-slate-300" />
+                        <Label htmlFor="aslab" className="flex items-center cursor-pointer">
+                          <Users className="h-5 w-5 mr-2 text-purple-500" />
+                          Aslab (Lab Assistant)
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
                 <motion.div
                   whileHover={{ scale: 1.02 }}
@@ -188,7 +216,8 @@ const Login = () => {
                 </Link>
               </p>
               <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
-                This is a demo app. Use NPM: 123456, Password: password123
+                For student: NPM: 123456, Password: password123 <br />
+                For admin: NPM: 654321, Password: password123
               </p>
             </CardFooter>
           </Card>
