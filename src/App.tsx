@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/SignUp";
 import Index from "./pages/Index";
-import { AuthProvider, RequireAuth } from "./contexts/AuthContext";
+import { AuthProvider, RequireAuth, RequireAdmin } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -64,9 +64,9 @@ const App = () => {
                 </RequireAuth>
               } />
               <Route path="/settings" element={
-                <RequireAuth>
+                <RequireAdmin>
                   <Layout><Settings /></Layout>
-                </RequireAuth>
+                </RequireAdmin>
               } />
               
               {/* 404 and fallback routes */}

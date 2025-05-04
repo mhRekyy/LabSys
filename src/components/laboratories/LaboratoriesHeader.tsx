@@ -26,7 +26,7 @@ const LaboratoriesHeader: React.FC<LaboratoriesHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={onFilterToggle}>
+        {/* <Button variant="outline" size="sm" onClick={onFilterToggle}>
           <Filter className="h-4 w-4 mr-2" />
           Filters
         </Button>
@@ -36,7 +36,7 @@ const LaboratoriesHeader: React.FC<LaboratoriesHeaderProps> = ({
             <Plus className="h-4 w-4 mr-2" />
             Add Laboratory
           </Button>
-        )}
+        )} */}
       </div>
     </div>
   );

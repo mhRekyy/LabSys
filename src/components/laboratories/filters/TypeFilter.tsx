@@ -25,9 +25,9 @@ const TypeFilter: React.FC<TypeFilterProps> = ({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Types</SelectItem>
-          {types.map((type) => (
-            <SelectItem key={type} value={type}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+          {types.filter(type => type !== "").map((type) => (
+            <SelectItem key={type} value={type || "unknown-type"}>
+              {type ? type.charAt(0).toUpperCase() + type.slice(1) : "Unknown Type"}
             </SelectItem>
           ))}
         </SelectContent>

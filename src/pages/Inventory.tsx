@@ -23,14 +23,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  Search, Plus, Filter, MoreVertical, Edit, Trash2, Package, MapPin, History, CirclePlus
+  Search, Plus, Filter, MoreVertical, Edit, Trash2, Package, MapPin, History, CirclePlus, Eye
 } from "lucide-react";
 import { inventoryItems, categories, locations } from "@/data/mockData";
 import { Item } from "@/types/inventory";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import AddItemDialog from "@/components/inventory/AddItemDialog";
+import ViewItemDialog from "@/components/inventory/ViewItemDialog";
 
 const Inventory = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,49 +40,105 @@ const Inventory = () => {
   const [sortBy, setSortBy] = useState("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showBorrowDialog, setShowBorrowDialog] = useState(false);
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [showViewItemDialog, setShowViewItemDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const { isAdmin } = useAuth();
+  const [items, setItems] = useState<Item[]>([]);
+  const { isAdmin, studentNpm } = useAuth();
+
+  // Load inventory items
+  useEffect(() => {
+    // Check if there are locally stored inventory items first
+    const localStorageKey = 'inventoryItems';
+    const storedItems = localStorage.getItem(localStorageKey);
+    
+    if (storedItems) {
+      // Use data from localStorage if available
+      setItems(JSON.parse(storedItems));
+    } else {
+      // Fall back to mock data
+      setItems(inventoryItems);
+      // Initialize localStorage with mock data
+      localStorage.setItem(localStorageKey, JSON.stringify(inventoryItems));
+    }
+  }, []);
 
   const handleDelete = (itemId: string) => {
     if (!isAdmin) {
       toast.error("You don't have permission to delete items");
       return;
     }
+    
+    // Remove the item from the state
+    const updatedItems = items.filter(item => item.id !== itemId);
+    setItems(updatedItems);
+    
+    // Update localStorage
+    localStorage.setItem('inventoryItems', JSON.stringify(updatedItems));
+    
     toast.success("Item deleted successfully");
   };
   
   const handleBorrowItem = (item: Item) => {
     setSelectedItem(item);
-    setShowBorrowDialog(true);
+    setShowBorrowDialog(false);
+    setShowViewItemDialog(true);
   };
   
-  const confirmBorrow = () => {
-    setShowBorrowDialog(false);
-    if (selectedItem) {
-      toast.success(`Successfully borrowed ${selectedItem.name}`);
-      
-      // Add to borrowing history in localStorage
-      const newBorrowing = {
-        id: Date.now().toString(),
-        itemId: selectedItem.id,
-        itemName: selectedItem.name,
-        borrower: "Current User",
-        borrowerNpm: localStorage.getItem("studentNpm") || "123456",
-        borrowDate: new Date().toISOString(),
-        returnDate: null,
-        status: "borrowed",
-        location: selectedItem.location,
-        category: selectedItem.category,
-      };
-      
-      const existingBorrowings = localStorage.getItem('borrowingHistory');
-      const borrowings = existingBorrowings ? JSON.parse(existingBorrowings) : [];
-      localStorage.setItem('borrowingHistory', JSON.stringify([...borrowings, newBorrowing]));
+  const handleViewItem = (item: Item) => {
+    setSelectedItem(item);
+    setShowViewItemDialog(true);
+  };
+  
+  const confirmBorrow = (item: Item, quantity: number) => {
+    setShowViewItemDialog(false);
+    
+    if (!item) return;
+    
+    toast.success(`Successfully borrowed ${quantity} ${quantity > 1 ? 'units of' : 'unit of'} ${item.name}`);
+    
+    // Add to borrowing history in localStorage
+    const newBorrowing = {
+      id: Date.now().toString(),
+      itemId: item.id,
+      itemName: item.name,
+      borrower: "Current User", // In a real app, this would be the user's name
+      borrowerNpm: studentNpm || "123456",
+      borrowDate: new Date().toISOString(),
+      returnDate: null,
+      status: "borrowed",
+      location: item.location,
+      category: item.category,
+      quantity: quantity,
+    };
+    
+    // Get existing borrowings
+    const existingBorrowings = localStorage.getItem('borrowingHistory');
+    const borrowings = existingBorrowings ? JSON.parse(existingBorrowings) : [];
+    
+    // Update localStorage with new borrowing
+    localStorage.setItem('borrowingHistory', JSON.stringify([...borrowings, newBorrowing]));
+    
+    // Update the item's quantity
+    if (item.quantity >= quantity) {
+      const updatedItems = items.map(i => 
+        i.id === item.id 
+          ? { ...i, quantity: i.quantity - quantity }
+          : i
+      );
+      setItems(updatedItems);
+      localStorage.setItem('inventoryItems', JSON.stringify(updatedItems));
     }
+  };
+  
+  const handleAddItem = (newItem: Item) => {
+    const updatedItems = [...items, newItem];
+    setItems(updatedItems);
+    localStorage.setItem('inventoryItems', JSON.stringify(updatedItems));
   };
 
   // Filter and sort items
-  const filteredItems = inventoryItems.filter((item) => {
+  const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter ? item.category.id === categoryFilter : true;
@@ -120,7 +177,11 @@ const Inventory = () => {
             </Link>
           </Button>
           {isAdmin && (
-            <Button className="w-full sm:w-auto" size="sm">
+            <Button 
+              className="w-full sm:w-auto" 
+              size="sm" 
+              onClick={() => setShowAddItemDialog(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add New Item
             </Button>
@@ -156,9 +217,12 @@ const Inventory = () => {
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                      <SelectItem 
+                        key={category.id} 
+                        value={category.id || "unknown-category"} // Fix: use "unknown-category" instead of empty string
+                      >
                         {category.name}
                       </SelectItem>
                     ))}
@@ -173,9 +237,12 @@ const Inventory = () => {
                     <SelectValue placeholder="All Locations" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Locations</SelectItem>
+                    <SelectItem value="all">All Locations</SelectItem>
                     {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
+                      <SelectItem 
+                        key={location.id} 
+                        value={location.id || "unknown-location"} // Fix: use "unknown-location" instead of empty string
+                      >
                         {location.name}
                       </SelectItem>
                     ))}
@@ -217,7 +284,7 @@ const Inventory = () => {
         <div className="md:col-span-4 lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredItems.length} of {inventoryItems.length} items
+              Showing {filteredItems.length} of {items.length} items
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -279,6 +346,7 @@ const Inventory = () => {
                   item={item}
                   onDelete={handleDelete}
                   onBorrow={handleBorrowItem}
+                  onView={handleViewItem}
                   isAdmin={isAdmin}
                 />
               ))}
@@ -291,6 +359,7 @@ const Inventory = () => {
                   item={item}
                   onDelete={handleDelete}
                   onBorrow={handleBorrowItem}
+                  onView={handleViewItem}
                   isAdmin={isAdmin}
                 />
               ))}
@@ -309,30 +378,22 @@ const Inventory = () => {
         </div>
       </div>
       
-      {/* Borrow Dialog */}
-      <Dialog open={showBorrowDialog} onOpenChange={setShowBorrowDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Borrow Item</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>Are you sure you want to borrow:</p>
-            <div className="flex items-center gap-4 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="w-12 h-12 bg-primary/10 flex items-center justify-center rounded">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium text-lg">{selectedItem?.name}</h3>
-                <p className="text-sm text-muted-foreground">{selectedItem?.category.name} • {selectedItem?.location.name}</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBorrowDialog(false)}>Cancel</Button>
-            <Button onClick={confirmBorrow}>Confirm Borrow</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* View Item Dialog */}
+      <ViewItemDialog 
+        open={showViewItemDialog} 
+        onOpenChange={setShowViewItemDialog} 
+        item={selectedItem} 
+        onBorrow={confirmBorrow}
+      />
+      
+      {/* Add Item Dialog */}
+      <AddItemDialog 
+        open={showAddItemDialog} 
+        onOpenChange={setShowAddItemDialog} 
+        onAddItem={handleAddItem}
+        categories={categories}
+        locations={locations}
+      />
     </div>
   );
 };
@@ -341,10 +402,11 @@ interface InventoryCardProps {
   item: Item;
   onDelete: (id: string) => void;
   onBorrow: (item: Item) => void;
+  onView: (item: Item) => void;
   isAdmin: boolean;
 }
 
-const InventoryCard = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps) => {
+const InventoryCard = ({ item, onDelete, onBorrow, onView, isAdmin }: InventoryCardProps) => {
   return (
     <Card className="overflow-hidden h-full">
       <div className="h-40 bg-muted flex items-center justify-center overflow-hidden">
@@ -372,8 +434,8 @@ const InventoryCard = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link to={`/inventory/${item.id}`}>View details</Link>
+                <DropdownMenuItem onClick={() => onView(item)}>
+                  View details
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to={`/inventory/${item.id}/edit`}>Edit item</Link>
@@ -384,9 +446,9 @@ const InventoryCard = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <CirclePlus className="h-4 w-4" onClick={() => onBorrow(item)} />
-              <span className="sr-only">Borrow</span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView(item)}>
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">View details</span>
             </Button>
           )}
         </div>
@@ -420,12 +482,13 @@ const InventoryCard = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps
           {item.location.name}
         </div>
         {isAdmin ? (
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/inventory/${item.id}`}>View</Link>
+          <Button variant="outline" size="sm" onClick={() => onView(item)}>
+            <Eye className="h-4 w-4 mr-1" />
+            View
           </Button>
         ) : (
-          <Button variant="default" size="sm" onClick={() => onBorrow(item)}>
-            Borrow
+          <Button variant="default" size="sm" onClick={() => onBorrow(item)} disabled={item.quantity <= 0}>
+            {item.quantity > 0 ? "Borrow" : "Out of Stock"}
           </Button>
         )}
       </CardFooter>
@@ -433,7 +496,7 @@ const InventoryCard = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps
   );
 };
 
-const InventoryListItem = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardProps) => {
+const InventoryListItem = ({ item, onDelete, onBorrow, onView, isAdmin }: InventoryCardProps) => {
   return (
     <Card>
       <CardContent className="p-4">
@@ -478,6 +541,10 @@ const InventoryListItem = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardP
           <div className="flex items-center gap-2">
             {isAdmin ? (
               <>
+                <Button variant="outline" size="icon" onClick={() => onView(item)}>
+                  <Eye className="h-4 w-4" />
+                  <span className="sr-only">View</span>
+                </Button>
                 <Button variant="outline" size="icon" asChild>
                   <Link to={`/inventory/${item.id}/edit`}>
                     <Edit className="h-4 w-4" />
@@ -488,14 +555,22 @@ const InventoryListItem = ({ item, onDelete, onBorrow, isAdmin }: InventoryCardP
                   <Trash2 className="h-4 w-4" />
                   <span className="sr-only">Delete</span>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/inventory/${item.id}`}>View</Link>
-                </Button>
               </>
             ) : (
-              <Button variant="default" size="sm" onClick={() => onBorrow(item)}>
-                Borrow Item
-              </Button>
+              <>
+                <Button variant="outline" size="icon" onClick={() => onView(item)}>
+                  <Eye className="h-4 w-4" />
+                  <span className="sr-only">View</span>
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => onBorrow(item)}
+                  disabled={item.quantity <= 0}
+                >
+                  {item.quantity > 0 ? "Borrow Item" : "Out of Stock"}
+                </Button>
+              </>
             )}
           </div>
         </div>

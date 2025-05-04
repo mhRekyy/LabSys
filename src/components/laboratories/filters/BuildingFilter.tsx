@@ -26,7 +26,9 @@ const BuildingFilter: React.FC<BuildingFilterProps> = ({
         <SelectContent>
           <SelectItem value="all">All Buildings</SelectItem>
           {buildings.map((building) => (
-            <SelectItem key={building} value={building}>{building}</SelectItem>
+            <SelectItem key={building} value={building || "unknown-building"}>
+              {building || "Unknown Building"}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>

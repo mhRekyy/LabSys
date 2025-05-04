@@ -25,8 +25,8 @@ const FloorFilter: React.FC<FloorFilterProps> = ({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Floors</SelectItem>
-          {floors.map((floor) => (
-            <SelectItem key={floor} value={floor}>Floor {floor}</SelectItem>
+          {floors.filter(floor => floor !== "").map((floor) => (
+            <SelectItem key={floor} value={floor || "unknown-floor"}>Floor {floor || "Unknown"}</SelectItem>
           ))}
         </SelectContent>
       </Select>

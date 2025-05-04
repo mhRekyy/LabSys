@@ -3,11 +3,18 @@ import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -24,103 +31,139 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Filter, Package, Calendar, Clock, User } from "lucide-react";
-import { format } from "date-fns";
-import { toast } from "sonner";
+import { Package, Search, Filter, MoreVertical, ArrowUpDown, Calendar, Eye } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import ViewItemDialog from "@/components/inventory/ViewItemDialog";
+import { Item } from "@/types/inventory";
+import { inventoryItems } from "@/data/mockData";
 
-// Mock data for borrowing history
-const allBorrowingHistoryData = [
-  {
-    id: "1",
-    itemId: "item-1",
-    itemName: "Laptop Dell XPS 13",
-    borrower: "John Smith",
-    borrowerNpm: "123456",
-    borrowDate: "2025-04-01T10:00:00",
-    returnDate: "2025-04-08T16:30:00",
-    status: "returned",
-    location: { name: "Engineering Building" },
-    category: { name: "Electronics", color: "#3b82f6" },
-  },
-  {
-    id: "2",
-    itemId: "item-3",
-    itemName: "DSLR Camera",
-    borrower: "Emily Johnson",
-    borrowerNpm: "654321",
-    borrowDate: "2025-04-05T09:15:00",
-    returnDate: null,
-    status: "borrowed",
-    location: { name: "Media Center" },
-    category: { name: "Photography", color: "#8b5cf6" },
-  },
-  {
-    id: "3",
-    itemId: "item-7",
-    itemName: "Projector",
-    borrower: "Michael Brown",
-    borrowerNpm: "123456",
-    borrowDate: "2025-03-28T13:45:00",
-    returnDate: "2025-04-01T11:20:00",
-    status: "returned",
-    location: { name: "Lecture Hall" },
-    category: { name: "Audio/Visual", color: "#ec4899" },
-  },
-  {
-    id: "4",
-    itemId: "item-12",
-    itemName: "iPad Pro",
-    borrower: "Sarah Davis",
-    borrowerNpm: "987654",
-    borrowDate: "2025-04-07T14:30:00",
-    returnDate: null,
-    status: "borrowed",
-    location: { name: "Art Department" },
-    category: { name: "Electronics", color: "#3b82f6" },
-  },
-  {
-    id: "5",
-    itemId: "item-15",
-    itemName: "Microphone Set",
-    borrower: "David Wilson",
-    borrowerNpm: "654321",
-    borrowDate: "2025-03-25T10:00:00",
-    returnDate: "2025-03-27T15:45:00",
-    status: "returned",
-    location: { name: "Music Room" },
-    category: { name: "Audio/Visual", color: "#ec4899" },
-  },
-];
+// Define the shape of a borrowing record
+interface BorrowingRecord {
+  id: string;
+  itemId: string;
+  itemName: string;
+  borrower: string;
+  borrowerNpm: string;
+  borrowDate: string;
+  returnDate: string | null;
+  status: "borrowed" | "returned";
+  location: any;
+  category: any;
+  quantity?: number;
+}
 
 const BorrowingHistory = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all-status");
   const [sortBy, setSortBy] = useState("recent");
-  const [borrowingHistoryData, setBorrowingHistoryData] = useState([]);
+  const [borrowingHistoryData, setBorrowingHistoryData] = useState<BorrowingRecord[]>([]);
+  const [showViewItemDialog, setShowViewItemDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const { isAdmin, studentNpm } = useAuth();
 
-  // Load the appropriate borrowing history based on user role
+  // Load borrowing history data
   useEffect(() => {
-    if (isAdmin) {
-      // Admin sees all borrowings
-      setBorrowingHistoryData(allBorrowingHistoryData);
+    const localStorageKey = 'borrowingHistory';
+    const storedHistory = localStorage.getItem(localStorageKey);
+    
+    let historyData = [];
+    if (storedHistory) {
+      historyData = JSON.parse(storedHistory);
+    }
+    
+    // If not admin, filter to show only current user's borrowings
+    if (!isAdmin && studentNpm) {
+      historyData = historyData.filter((record: BorrowingRecord) => record.borrowerNpm === studentNpm);
+    }
+    
+    setBorrowingHistoryData(historyData);
+    
+    // Load inventory items too
+    const storedItems = localStorage.getItem('inventoryItems');
+    if (storedItems) {
+      setAllItems(JSON.parse(storedItems));
     } else {
-      // Students only see their own borrowings
-      const filteredData = allBorrowingHistoryData.filter(
-        record => record.borrowerNpm === studentNpm
-      );
-      setBorrowingHistoryData(filteredData);
+      setAllItems(inventoryItems);
     }
   }, [isAdmin, studentNpm]);
 
-  // Filter and sort history items
-  const filteredHistory = borrowingHistoryData
+  const handleReturn = (recordId: string) => {
+    const updatedHistory = borrowingHistoryData.map(record =>
+      record.id === recordId
+        ? {
+            ...record,
+            returnDate: new Date().toISOString(),
+            status: "returned" as const,
+          }
+        : record
+    );
+
+    // Update local state
+    setBorrowingHistoryData(updatedHistory);
+    
+    // Update localStorage
+    localStorage.setItem('borrowingHistory', JSON.stringify(updatedHistory));
+    
+    // Update inventory quantity
+    const returnedRecord = borrowingHistoryData.find(record => record.id === recordId);
+    if (returnedRecord) {
+      const returnQuantity = returnedRecord.quantity || 1;
+      
+      const storedItems = localStorage.getItem('inventoryItems');
+      if (storedItems) {
+        const items = JSON.parse(storedItems);
+        const updatedItems = items.map((item: Item) => {
+          if (item.id === returnedRecord.itemId) {
+            return {
+              ...item,
+              quantity: item.quantity + returnQuantity
+            };
+          }
+          return item;
+        });
+        
+        localStorage.setItem('inventoryItems', JSON.stringify(updatedItems));
+      }
+    }
+
+    toast.success("Item marked as returned");
+  };
+  
+  const handleViewItem = (record: BorrowingRecord) => {
+    // Find the full item data based on the record's itemId
+    const item = allItems.find(item => item.id === record.itemId);
+    
+    if (item) {
+      setSelectedItem(item);
+      setShowViewItemDialog(true);
+    } else {
+      // If the item doesn't exist anymore, create a temporary one with the record's data
+      const temporaryItem: Item = {
+        id: record.itemId,
+        name: record.itemName,
+        description: "Item details may be incomplete as this item no longer exists in the inventory.",
+        category: record.category,
+        location: record.location,
+        quantity: 0,
+        // Fix: Change "Unknown" to "Fair" to match the allowed condition types
+        condition: "Fair",
+        lastUpdated: record.borrowDate,
+      };
+      setSelectedItem(temporaryItem);
+      setShowViewItemDialog(true);
+    }
+  };
+
+  // Filter and sort borrowing records
+  const filteredRecords = borrowingHistoryData
     .filter((record) => {
       const matchesSearch =
         record.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         record.borrower.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter ? record.status === statusFilter : true;
+      const matchesStatus = statusFilter === "all-status" ? true : record.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
@@ -129,7 +172,7 @@ const BorrowingHistory = () => {
           return new Date(b.borrowDate).getTime() - new Date(a.borrowDate).getTime();
         case "oldest":
           return new Date(a.borrowDate).getTime() - new Date(b.borrowDate).getTime();
-        case "name":
+        case "item":
           return a.itemName.localeCompare(b.itemName);
         case "borrower":
           return a.borrower.localeCompare(b.borrower);
@@ -138,217 +181,217 @@ const BorrowingHistory = () => {
       }
     });
 
-  const handleReturn = (id: string) => {
-    // Update the borrowing status
-    const updatedData = borrowingHistoryData.map(item => 
-      item.id === id 
-        ? { ...item, status: "returned", returnDate: new Date().toISOString() } 
-        : item
-    );
-    
-    setBorrowingHistoryData(updatedData);
-    toast.success("Item marked as returned");
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Borrowing History</h1>
           <p className="text-muted-foreground mt-1">
-            {isAdmin 
-              ? "Track all borrowing and returns of inventory items across the system."
-              : "Track your borrowing history and returns."
+            {isAdmin
+              ? "Track all borrowed items across the campus."
+              : "View your borrowed equipment history."
             }
           </p>
         </div>
-        <Button className="w-full sm:w-auto" size="sm" asChild>
-          <Link to="/inventory">
-            <Package className="mr-2 h-4 w-4" />
-            View Inventory
-          </Link>
-        </Button>
+        <div>
+          <Button asChild>
+            <Link to="/inventory">
+              <Package className="mr-2 h-4 w-4" />
+              Inventory
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="md:col-span-4 lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Filters</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search by item or borrower..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>
+                {isAdmin ? "All Borrowings" : "Your Borrowings"}
+              </CardTitle>
+              <CardDescription>
+                {filteredRecords.length} records found
+              </CardDescription>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative w-full sm:w-[240px]">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search..."
+                  className="pl-8 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-auto">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all-status">All Status</SelectItem>
                     <SelectItem value="borrowed">Currently Borrowed</SelectItem>
                     <SelectItem value="returned">Returned</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sort By</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent">Most Recent</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="name">Item Name (A-Z)</SelectItem>
-                    <SelectItem value="borrower">Borrower Name (A-Z)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="md:col-span-4 lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {isAdmin ? "All Borrowing Records" : "Your Borrowing Records"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {filteredHistory.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        {isAdmin && <TableHead>Borrower</TableHead>}
-                        <TableHead>Dates</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredHistory.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{record.itemName}</div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                <Badge
-                                  className="mr-1"
-                                  style={{
-                                    backgroundColor: record.category.color,
-                                    color: "white",
-                                  }}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredRecords.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[250px]">Item</TableHead>
+                    {isAdmin && <TableHead>Borrower</TableHead>}
+                    <TableHead className="hidden md:table-cell">Category</TableHead>
+                    <TableHead>
+                      <button
+                        className="flex items-center space-x-1 hover:text-primary"
+                        onClick={() =>
+                          setSortBy(sortBy === "recent" ? "oldest" : "recent")
+                        }
+                      >
+                        <span>Date</span>
+                        <ArrowUpDown className="h-3 w-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">Status</TableHead>
+                    <TableHead className="hidden md:table-cell text-center">Quantity</TableHead>
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-9 w-9 rounded bg-primary/10 flex items-center justify-center">
+                            <Package className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{record.itemName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {record.location?.name}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="font-medium">{record.borrower}</div>
+                          <div className="text-xs text-muted-foreground">
+                            NPM: {record.borrowerNpm}
+                          </div>
+                        </TableCell>
+                      )}
+                      <TableCell className="hidden md:table-cell">
+                        <Badge
+                          style={{
+                            backgroundColor: record.category?.color || "#888",
+                            color: "white",
+                          }}
+                        >
+                          {record.category?.name || "Other"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1 text-muted-foreground" />
+                          <span title={format(new Date(record.borrowDate), "PPpp")}>
+                            {formatDistanceToNow(new Date(record.borrowDate), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+                        {record.returnDate && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Returned{" "}
+                            {formatDistanceToNow(new Date(record.returnDate), {
+                              addSuffix: true,
+                            })}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge
+                          variant={record.status === "borrowed" ? "default" : "outline"}
+                        >
+                          {record.status === "borrowed" ? "Borrowed" : "Returned"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-center">
+                        {record.quantity || 1}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewItem(record)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                          {record.status === "borrowed" && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="h-8 w-8 p-0"
+                                  size="sm"
                                 >
-                                  {record.category.name}
-                                </Badge>
-                                {record.location.name}
-                              </div>
-                            </div>
-                          </TableCell>
-                          {isAdmin && (
-                            <TableCell>
-                              <div className="flex items-center">
-                                <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {record.borrower}
-                                <div className="text-xs ml-2 text-muted-foreground">
-                                  (NPM: {record.borrowerNpm})
-                                </div>
-                              </div>
-                            </TableCell>
+                                  <MoreVertical className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleReturn(record.id)}
+                                >
+                                  Mark as returned
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center text-xs">
-                                <Calendar className="h-3 w-3 mr-1 text-muted-foreground" />
-                                <span>Borrowed: {format(new Date(record.borrowDate), "MMM d, yyyy")}</span>
-                              </div>
-                              {record.returnDate && (
-                                <div className="flex items-center text-xs">
-                                  <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
-                                  <span>Returned: {format(new Date(record.returnDate), "MMM d, yyyy")}</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={record.status === "borrowed" ? "outline" : "default"}
-                              className={
-                                record.status === "borrowed"
-                                  ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 hover:text-yellow-800"
-                                  : "bg-green-100 text-green-800 hover:bg-green-100 hover:text-green-800"
-                              }
-                            >
-                              {record.status === "borrowed" ? "Currently Borrowed" : "Returned"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {record.status === "borrowed" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReturn(record.id)}
-                              >
-                                Mark Returned
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                              className="ml-2"
-                            >
-                              <Link to={`/inventory/${record.itemId}`}>
-                                View Item
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="h-24 flex flex-col items-center justify-center text-center p-4">
-                  <div className="flex flex-col items-center justify-center text-center p-4">
-                    <Filter className="h-8 w-8 text-muted-foreground mb-2" />
-                    <h3 className="text-lg font-medium">
-                      {isAdmin 
-                        ? "No records found" 
-                        : "You haven't borrowed any items yet"
-                      }
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {isAdmin 
-                        ? "Try adjusting your search or filter to find what you're looking for."
-                        : "Visit the inventory page to borrow laboratory equipment."
-                      }
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="h-60 flex flex-col items-center justify-center text-center p-8 border border-dashed rounded-lg">
+              <Filter className="h-8 w-8 text-muted-foreground mb-2" />
+              <h3 className="text-lg font-medium">No borrowing records found</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {searchQuery || statusFilter !== "all-status"
+                  ? "Try adjusting your search or filter."
+                  : isAdmin
+                  ? "No items have been borrowed yet."
+                  : "You haven't borrowed any items yet."}
+              </p>
+              <Button asChild className="mt-4">
+                <Link to="/inventory">Browse Inventory</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* View Item Dialog */}
+      <ViewItemDialog 
+        open={showViewItemDialog} 
+        onOpenChange={setShowViewItemDialog} 
+        item={selectedItem}
+      />
     </div>
   );
 };
