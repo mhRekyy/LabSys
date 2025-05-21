@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
-import BorrowingHistory from "./pages/BorrowingHistory";
+import BorrowingHistory from "./pages/BorrowingHistoryPage";
 import Laboratories from "./pages/Laboratories";
 import Categories from "./pages/Categories";
 import Settings from "./pages/Settings";

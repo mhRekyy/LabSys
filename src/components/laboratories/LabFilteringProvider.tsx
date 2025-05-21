@@ -1,149 +1,181 @@
-import React, { createContext, useState, useMemo, useContext } from "react";
-import { Lab } from "@/components/laboratories/types";
-import { LabFilterOptions } from "@/components/dashboard/types";
+// src/components/laboratories/LabFilteringProvider.tsx
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  ReactNode,
+  // useMemo, // Dihapus jika tidak ada filter frontend tambahan yang signifikan
+} from "react";
+import {
+  Laboratorium,
+  BackendLaboratoriumFilters, // Ganti nama dari LaboratoriumFilters jika sebelumnya hanya ini
+  // FrontendLaboratoriumFilters, // Hapus jika tidak ada filter frontend kompleks
+  // LabFilterOptions, // Hapus jika tidak ada filter frontend kompleks
+  ApiLaboratoriumDetailResponse, // Untuk detail
+  // ApiLaboratoriumListResponse // Untuk list jika backend mengirim struktur berbeda dari array langsung
+} from "@/components/laboratories/types";
+import { useAuth } from "@/contexts/AuthContext";
+import axiosInstance from "@/lib/axiosInstance";
+import { toast } from "sonner";
 
 interface LabFilterContextType {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  filter: string;
-  setFilter: (filter: string) => void;
-  showFilters: boolean;
-  setShowFilters: (show: boolean) => void;
-  selectedFilters: {
-    [key: string]: boolean;
-  };
-  toggleFilter: (filterName: string) => void;
-  buildingFilter: string;
-  setBuildingFilter: (building: string) => void;
-  floorFilter: string; 
-  setFloorFilter: (floor: string) => void;
-  typeFilter: string;
-  setTypeFilter: (type: string) => void;
-  filterOptions: LabFilterOptions;
-  filteredLabs: Lab[];
-  laboratories: Lab[];
-  setLaboratories: React.Dispatch<React.SetStateAction<Lab[]>>;
+  displayLaboratories: Laboratorium[]; // Data yang ditampilkan
+  // allFetchedLaboratories: Laboratorium[]; // Hanya jika ada filter frontend signifikan
+  // filterOptions: LabFilterOptions; // Hanya jika ada filter frontend signifikan
+  isLoading: boolean;
+  backendFilters: BackendLaboratoriumFilters;
+  setBackendFilters: React.Dispatch<React.SetStateAction<BackendLaboratoriumFilters>>;
+  // frontendFilters: FrontendLaboratoriumFilters; // Hanya jika ada filter frontend signifikan
+  // setFrontendFilters: React.Dispatch<React.SetStateAction<FrontendLaboratoriumFilters>>; // Hanya jika ada
+  updateLabStatus: (labId: number, newStatus: "Open" | "Closed") => Promise<boolean>;
+  fetchLabDetails: (labId: number) => Promise<Laboratorium | null>;
+  // totalLabs: number; // Jika ada pagination
+  refreshLaboratories: () => void; // Fungsi untuk refresh manual
 }
 
 const LabFilterContext = createContext<LabFilterContextType | undefined>(undefined);
 
 export const useLabFilters = () => {
   const context = useContext(LabFilterContext);
-  if (!context) {
-    throw new Error("useLabFilters must be used within a LabFilterProvider");
-  }
+  if (!context) throw new Error("useLabFilters must be used within a LabFilterProvider");
   return context;
 };
 
 interface LabFilterProviderProps {
   children: React.ReactNode;
-  initialLabs: Lab[];
 }
 
-export const LabFilterProvider: React.FC<LabFilterProviderProps> = ({ 
-  children, 
-  initialLabs 
-}) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    open: true,
-    closed: true,
-    computer: true,
-    science: true,
-    engineering: true,
-    biology: true,
-    electronics: true
+export const LabFilterProvider: React.FC<LabFilterProviderProps> = ({ children }) => {
+  const { token, isAuthenticated, user } = useAuth();
+
+  // State utama untuk daftar laboratorium yang akan ditampilkan
+  const [displayLaboratories, setDisplayLaboratories] = useState<Laboratorium[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [backendFilters, setBackendFilters] = useState<BackendLaboratoriumFilters>({
+    search: "",
+    status: "", // '' = all, 'Open', atau 'Closed'
+    // Tambahkan page dan per_page jika ada pagination
+    // page: 1,
+    // per_page: 10,
   });
-  const [buildingFilter, setBuildingFilter] = useState("all");
-  const [floorFilter, setFloorFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [laboratories, setLaboratories] = useState(initialLabs);
-  
-  // Extract unique filter options
-  const filterOptions = useMemo<LabFilterOptions>(() => {
-    const buildings = Array.from(new Set(laboratories.map(lab => lab.building)));
-    const floors = Array.from(new Set(laboratories.map(lab => lab.floor.toString())));
-    const types = Array.from(new Set(laboratories.map(lab => lab.type)));
-    
-    return { buildings, floors, types };
-  }, [laboratories]);
-  
-  const toggleFilter = (filterName: string) => {
-    setSelectedFilters({
-      ...selectedFilters,
-      [filterName]: !selectedFilters[filterName]
-    });
-  };
-  
-  const filteredLabs = useMemo(() => {
-    return laboratories.filter(lab => {
-      // Filter by search query
-      const matchesSearch = lab.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           lab.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           lab.building.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Filter by status and type (checkboxes)
-      const matchesStatus = selectedFilters[lab.status];
-      const matchesType = selectedFilters[lab.type];
-      
-      // Filter by building
-      const matchesBuilding = buildingFilter === "all" || lab.building === buildingFilter;
-      
-      // Filter by floor
-      const matchesFloor = floorFilter === "all" || lab.floor.toString() === floorFilter;
-      
-      // Filter by type dropdown
-      const matchesTypeDropdown = typeFilter === "all" || lab.type === typeFilter;
-      
-      // Apply tab filter if not "all"
-      const matchesTab = filter === "all" || 
-                        (filter === "open" && lab.status === "open") ||
-                        (filter === "building" && lab.building === "Engineering Building");
-      
-      return matchesSearch && 
-             matchesStatus && 
-             matchesType && 
-             matchesTab && 
-             matchesBuilding && 
-             matchesFloor &&
-             matchesTypeDropdown;
-    });
-  }, [
-    laboratories, 
-    searchQuery, 
-    selectedFilters, 
-    filter, 
-    buildingFilter, 
-    floorFilter, 
-    typeFilter
-  ]);
 
-  const value = {
-    searchQuery,
-    setSearchQuery,
-    filter,
-    setFilter,
-    showFilters,
-    setShowFilters,
-    selectedFilters,
-    toggleFilter,
-    buildingFilter,
-    setBuildingFilter,
-    floorFilter,
-    setFloorFilter,
-    typeFilter,
-    setTypeFilter,
-    filterOptions,
-    filteredLabs,
-    laboratories,
-    setLaboratories
+  // Jika Anda punya filter frontend yang kompleks, state ini akan diperlukan
+  // const [frontendFilters, setFrontendFilters] = useState<FrontendLaboratoriumFilters>({ /* ... */ });
+
+  const fetchLaboratoriesAPI = useCallback(async (currentApiFilters: BackendLaboratoriumFilters) => {
+    if (!isAuthenticated || !token) {
+      setDisplayLaboratories([]); setIsLoading(false); return;
+    }
+    console.log("PROVIDER - fetchLaboratoriesAPI - Fetching with filters:", currentApiFilters);
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (currentApiFilters.search) params.append("search", currentApiFilters.search);
+      if (currentApiFilters.status) params.append("status", currentApiFilters.status);
+      // if (currentApiFilters.page) params.append('page', currentApiFilters.page.toString());
+      // if (currentApiFilters.per_page) params.append('per_page', currentApiFilters.per_page.toString());
+
+      const response = await axiosInstance.get(`/api/laboratorium`, { // Asumsi respons adalah array Laboratorium atau { data: Laboratorium[] }
+        headers: { Authorization: `Bearer ${token}` }, params,
+      });
+      console.log("PROVIDER - fetchLaboratoriesAPI - API Response:", response.data);
+
+      // Sesuaikan dengan struktur respons backend untuk list
+      // Jika backend mengirim { data: [...], meta: {...} } (umum untuk pagination Laravel Resource Collection)
+      if (response.data && Array.isArray(response.data.data)) {
+          setDisplayLaboratories(response.data.data as Laboratorium[]);
+          // setPaginationInfo(response.data.meta); // Jika ada pagination
+      }
+      // Jika backend mengirim array Laboratorium langsung
+      else if (Array.isArray(response.data)) {
+          setDisplayLaboratories(response.data as Laboratorium[]);
+      } else {
+          console.warn("PROVIDER - fetchLaboratoriesAPI - Unexpected list response structure:", response.data);
+          setDisplayLaboratories([]);
+          toast.error("Format data daftar laboratorium tidak dikenali.");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal memuat data laboratorium.");
+      setDisplayLaboratories([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) { setDisplayLaboratories([]); setIsLoading(false); return; }
+    const handler = setTimeout(() => fetchLaboratoriesAPI(backendFilters), 500); // Debounce
+    return () => clearTimeout(handler);
+  }, [backendFilters, fetchLaboratoriesAPI, isAuthenticated]);
+
+  const refreshLaboratories = useCallback(() => {
+    fetchLaboratoriesAPI(backendFilters);
+  }, [fetchLaboratoriesAPI, backendFilters]);
+
+
+  const fetchLabDetails = async (labId: number): Promise<Laboratorium | null> => {
+    if (!token || !isAuthenticated) { toast.error("Anda harus login."); return null; }
+    if (typeof labId !== 'number' || isNaN(labId)) {
+      toast.error("ID Laboratorium tidak valid."); return null;
+    }
+    console.log(`PROVIDER - fetchLabDetails - Fetching for labId: ${labId}`);
+    try {
+      const response = await axiosInstance.get<ApiLaboratoriumDetailResponse>(`/api/laboratorium/${labId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("PROVIDER - fetchLabDetails - API Response:", response.data);
+      // Asumsi backend mengirimkan detail dalam field 'data' jika menggunakan Resource tunggal
+      if (response.data && response.data.data && typeof response.data.data === 'object' && 'id' in response.data.data) {
+        return response.data.data as Laboratorium;
+      }
+      // Fallback jika backend mengirim objek Laboratorium langsung (jarang untuk Resource tunggal)
+      // else if (response.data && 'id' in response.data) {
+      //   return response.data as Laboratorium;
+      // }
+      toast.error("Format detail laboratorium tidak sesuai."); return null;
+    } catch (error: any) {
+      console.error("PROVIDER - fetchLabDetails - API Error:", error.response?.data || error.message);
+      if (error.response?.status === 404) toast.error(`Lab ID ${labId} tidak ditemukan.`);
+      else toast.error(error.response?.data?.message || "Gagal memuat detail lab.");
+      return null;
+    }
   };
 
-  return (
-    <LabFilterContext.Provider value={value}>
-      {children}
-    </LabFilterContext.Provider>
-  );
+  const updateLabStatus = async (labId: number, newStatus: "Open" | "Closed"): Promise<boolean> => {
+    if (!token || !isAuthenticated || !user || !(user.role === 'Admin' || user.role === 'Aslab')) {
+      toast.error("Aksi tidak diizinkan."); return false;
+    }
+    console.log(`PROVIDER - updateLabStatus - LabId: ${labId}, NewStatus: ${newStatus}`);
+    if (typeof labId !== 'number' || isNaN(labId)) { // Validasi tambahan
+        toast.error("Gagal update status: ID Lab tidak valid.");
+        return false;
+    }
+    try {
+      await axiosInstance.patch(`/api/laboratorium/${labId}/status`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success(`Status laboratorium berhasil diubah menjadi ${newStatus}.`);
+      // Update state lokal untuk UI responsif
+      setDisplayLaboratories(prev => prev.map(lab => lab.id === labId ? { ...lab, status: newStatus } : lab));
+      return true;
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal mengubah status lab.");
+      return false;
+    }
+  };
+
+  const contextValue = {
+    displayLaboratories,
+    isLoading,
+    backendFilters,
+    setBackendFilters,
+    updateLabStatus,
+    fetchLabDetails,
+    refreshLaboratories,
+  };
+
+  return (<LabFilterContext.Provider value={contextValue}>{children}</LabFilterContext.Provider>);
 };

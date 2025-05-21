@@ -1,69 +1,47 @@
+// src/components/laboratories/LabBookingDialog.tsx
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Lab } from "./types";
-import BookingForm from "./BookingForm";
-import { BookingItem } from "@/components/dashboard/types";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { Laboratorium } from "./types";
+// Impor FormattedBookingPayload dari BookingForm.tsx atau definisikan di types.ts jika dipakai di tempat lain
+import BookingForm, { FormattedBookingPayload } from "./BookingForm";
 
 interface LabBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedLab: Lab | null;
-  onBookingSubmit: (data: any) => void;
+  selectedLab: Laboratorium | null;
+  // onBookingSubmit sekarang menerima payload yang sudah diformat dari BookingForm
+  onBookingSubmit: (labId: number, bookingData: FormattedBookingPayload) => void;
 }
 
-const LabBookingDialog: React.FC<LabBookingDialogProps> = ({ 
-  open, 
-  onOpenChange, 
+const LabBookingDialog: React.FC<LabBookingDialogProps> = ({
+  open,
+  onOpenChange,
   selectedLab,
-  onBookingSubmit
+  onBookingSubmit,
 }) => {
-  const navigate = useNavigate();
-  
-  const handleBookingSubmit = (data: any) => {
+  const handleSubmitFromForm = (data: FormattedBookingPayload) => { // Terima FormattedBookingPayload
     if (!selectedLab) return;
-
-    // Create a new booking
-    const newBooking: BookingItem = {
-      id: Date.now(),
-      lab: selectedLab.name,
-      equipment: data.equipment || "General access",
-      date: data.date,
-      time: data.timeSlot,
-      status: "confirmed"
-    };
-
-    // Get existing bookings or initialize empty array
-    const existingBookings = localStorage.getItem('userBookings');
-    const bookings = existingBookings ? JSON.parse(existingBookings) : [];
-    
-    // Add new booking
-    const updatedBookings = [...bookings, newBooking];
-    
-    // Save to localStorage
-    localStorage.setItem('userBookings', JSON.stringify(updatedBookings));
-    
-    // Close dialog and show success message
-    onOpenChange(false);
-    toast.success("Booking created successfully!");
-    
-    // Navigate to dashboard
-    navigate("/dashboard");
+    onBookingSubmit(selectedLab.id, data);
   };
+
+  if (!open || !selectedLab) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Book {selectedLab?.name}</DialogTitle>
+          <DialogTitle>Ajukan Peminjaman Alat di Lab: {selectedLab?.nama_lab}</DialogTitle>
           <DialogDescription>
-            Select date and time for your laboratory session
+            Pilih alat, tanggal, dan tujuan peminjaman Anda.
+            Jam operasional lab: {selectedLab.jam_buka || '--:--'} - {selectedLab.jam_tutup || '--:--'}.
           </DialogDescription>
         </DialogHeader>
-        {selectedLab && (
-          <BookingForm lab={selectedLab} onSubmit={handleBookingSubmit} />
-        )}
+        <BookingForm
+          lab={selectedLab}
+          onSubmit={handleSubmitFromForm}
+        />
       </DialogContent>
     </Dialog>
   );
