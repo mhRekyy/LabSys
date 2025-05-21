@@ -6,17 +6,15 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\KategoriController;
 use App\Http\Controllers\Api\InventarisController;
 use App\Http\Controllers\Api\PeminjamanController;
-use App\Http\Controllers\Api\LaboratoriumController; 
+use App\Http\Controllers\Api\LaboratoriumController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\NotificationController;
-// Tambahkan controller lain di sini nanti...
+use App\Http\Controllers\Api\NotificationController; // Jika Anda sudah membuatnya
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-| Rute-rute untuk API aplikasi LabSys.
 */
 
 // === Rute Publik (Tidak Perlu Login) ===
@@ -30,45 +28,65 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- Otentikasi & User ---
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', function (Request $request) {
+        // Mengembalikan user yang terautentikasi dengan resource jika Anda punya UserResource
+        // return new \App\Http\Resources\UserResource($request->user());
+        // Atau langsung objek user:
         return $request->user();
     });
-    // Tambahkan route update profile/password di sini nanti
 
     // --- Kategori ---
+    // Semua user terautentikasi boleh lihat kategori
     Route::get('/kategori', [KategoriController::class, 'index']);
-    // Tambahkan route POST, PUT, DELETE kategori di sini nanti jika perlu
+    // Jika ada CRUD Kategori, proteksi dengan Gate yang sesuai (misal 'manage-inventaris' atau 'manage-kategori')
+    // Route::post('/kategori', [KategoriController::class, 'store'])->middleware('can:manage-inventaris');
+    // Route::put('/kategori/{kategori}', [KategoriController::class, 'update'])->middleware('can:manage-inventaris');
+    // Route::delete('/kategori/{kategori}', [KategoriController::class, 'destroy'])->middleware('can:manage-inventaris');
 
     // --- Inventaris ---
-    Route::get('/inventaris', [InventarisController::class, 'index']); // Daftar inventaris (sudah dibuat)
-    Route::get('/inventaris/{inventaris}', [InventarisController::class, 'show']); // <-- Rute Detail (Baru Ditambahkan)
-    Route::post('/inventaris', [InventarisController::class, 'store']);
-    Route::put('/inventaris/{inventaris}', [InventarisController::class, 'update']);
-    Route::delete('/inventaris/{inventaris}', [InventarisController::class, 'destroy']);
+    // Semua user terautentikasi boleh lihat daftar dan detail inventaris
+    Route::get('/inventaris', [InventarisController::class, 'index']);
+    Route::get('/inventaris/{inventaris}', [InventarisController::class, 'show']);
+    // Hanya Admin/Aslab yang boleh Tambah, Update, Hapus inventaris
+    Route::post('/inventaris', [InventarisController::class, 'store'])->middleware('can:manage-inventaris');
+    Route::put('/inventaris/{inventaris}', [InventarisController::class, 'update'])->middleware('can:manage-inventaris');
+    // Untuk PUT, kadang method spoofing POST dengan _method='PUT' dipakai jika frontend form tidak support PUT langsung
+    // Route::post('/inventaris/{inventaris}', [InventarisController::class, 'update'])->middleware('can:manage-inventaris'); // Jika pakai _method
+    Route::delete('/inventaris/{inventaris}', [InventarisController::class, 'destroy'])->middleware('can:manage-inventaris');
 
     // --- Peminjaman ---
-    Route::get('/peminjaman', [PeminjamanController::class, 'index']);             // Melihat riwayat peminjaman
-    Route::post('/peminjaman', [PeminjamanController::class, 'store']);            // Membuat permintaan peminjaman baru
-    Route::get('/peminjaman/{peminjaman}', [PeminjamanController::class, 'show']);  // (Opsional) Melihat detail 1 peminjaman
-    // Route untuk Admin/Aslab mengupdate status peminjaman (approval, pengembalian, dll.)
-    Route::patch('/peminjaman/{peminjaman}/update-status', [PeminjamanController::class, 'updateStatus']);
+    // Semua user terautentikasi boleh lihat riwayat peminjamannya (controller sudah handle filter by role)
+    Route::get('/peminjaman', [PeminjamanController::class, 'index']);
+    // Mahasiswa boleh membuat permintaan peminjaman baru
+    Route::post('/peminjaman', [PeminjamanController::class, 'store']);
+    // Semua user terautentikasi boleh lihat detail peminjamannya (controller akan handle otorisasi)
+    Route::get('/peminjaman/{peminjaman}', [PeminjamanController::class, 'show']);
+    // Hanya Admin/Aslab yang boleh update status peminjaman
+    Route::patch('/peminjaman/{peminjaman}/update-status', [PeminjamanController::class, 'updateStatus'])->middleware('can:manage-inventaris');
 
     // --- Laboratorium ---
-    Route::get('/laboratorium', [LaboratoriumController::class, 'index'])->middleware('can:manage-settings');
+    // Semua user terautentikasi boleh lihat daftar dan detail laboratorium
+    Route::get('/laboratorium', [LaboratoriumController::class, 'index']);
     Route::get('/laboratorium/{laboratorium}', [LaboratoriumController::class, 'show']);
-    Route::patch('/laboratorium/{laboratorium}/status', [LaboratoriumController::class, 'updateStatus'])->middleware('can:manage-settings');
-    // Tambahkan route GET, PATCH lab di sini nanti
+    // Hanya Admin/Aslab yang boleh mengubah status laboratorium
+    // Ganti 'manage-settings' dengan 'manage-inventaris' jika Aslab juga boleh,
+    // atau buat Gate baru 'manage-laboratorium' untuk Admin & Aslab.
+    Route::patch('/laboratorium/{laboratorium}/status', [LaboratoriumController::class, 'updateStatus'])->middleware('can:manage-inventaris'); // Menggunakan 'manage-inventaris' untuk Admin & Aslab
+
+    // Rute untuk Tambah Entitas Laboratorium Baru (jika diimplementasikan)
+    // Route::post('/laboratorium', [LaboratoriumController::class, 'store'])->middleware('can:manage-inventaris'); // Atau Gate khusus
+
 
     // --- Settings ---
+    // Hanya Admin yang boleh akses settings
     Route::get('/settings', [SettingController::class, 'index'])->middleware('can:manage-settings');
     Route::patch('/settings', [SettingController::class, 'update'])->middleware('can:manage-settings');
 
     // --- Dashboard ---
-    Route::get('/dashboard', [DashboardController::class, 'index']); 
-    // Tambahkan route GET dashboard di sini nanti
+    // Semua user terautentikasi boleh akses dashboard (controller akan handle data per role)
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
-    // --- Notifikasi ---
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
-    // Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    // --- Notifikasi (Jika Ada) ---
+    // Route::get('/notifications', [NotificationController::class, 'index']);
+    // Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
 
 }); // Akhir dari grup middleware auth:sanctum

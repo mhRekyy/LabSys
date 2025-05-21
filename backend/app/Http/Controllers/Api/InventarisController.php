@@ -9,6 +9,7 @@ use App\Http\Resources\InventarisResource;
 use App\Http\Requests\StoreInventarisRequest; 
 use App\Http\Requests\UpdateInventarisRequest;
 use Illuminate\Support\Facades\Gate; 
+use Illuminate\Support\Facades\Storage;
 
 class InventarisController extends Controller
 {

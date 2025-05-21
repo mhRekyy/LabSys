@@ -27,12 +27,14 @@ class Laboratorium extends Model
         'nama_lab',
         'lokasi_gedung',
         'lokasi_ruang',
+        'lantai',
         'jam_buka',
         'jam_tutup',
         'kapasitas',
         'status', // 'Open', 'Closed'
         'deskripsi_singkat',
         'fasilitas_utama',
+        'type_lab'
         // Tambahkan field lain jika perlu
     ];
 

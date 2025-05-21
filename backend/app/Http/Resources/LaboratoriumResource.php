@@ -20,6 +20,7 @@ class LaboratoriumResource extends JsonResource
             'lokasi_gedung' => $this->lokasi_gedung,
             'lokasi_ruang' => $this->lokasi_ruang,
             // Format jam (H:i) atau biarkan string sesuai DB
+            'lantai' => $this->whenNotNull($this->lantai),
             'jam_buka' => $this->jam_buka ? date('H:i', strtotime($this->jam_buka)) : null,
             'jam_tutup' => $this->jam_tutup ? date('H:i', strtotime($this->jam_tutup)) : null,
             'kapasitas' => $this->kapasitas,
@@ -27,6 +28,7 @@ class LaboratoriumResource extends JsonResource
             'deskripsi_singkat' => $this->deskripsi_singkat,
             'fasilitas_utama' => $this->fasilitas_utama,
             // Tambahkan field lain jika perlu
+            'type_lab' => $this->whenNotNull($this->type_lab),
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];

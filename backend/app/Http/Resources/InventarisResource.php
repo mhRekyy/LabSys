@@ -14,6 +14,17 @@ class InventarisResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $gambarFinalUrl = null;
+        if ($this->gambar) { // Menggunakan $this->gambar
+            if (Str::startsWith($this->gambar, ['http://', 'https://'])) {
+                // Jika sudah URL lengkap (eksternal)
+                $gambarFinalUrl = $this->gambar;
+            } elseif (Storage::disk('public')->exists($this->gambar)) {
+                // Jika path lokal dan file ada di storage
+                $gambarFinalUrl = asset('storage/' . $this->gambar);
+            } else {
+            }
+        }
         // return parent::toArray($request); // Hapus atau komentari baris ini
 
         // Definisikan struktur output JSON yang Anda inginkan

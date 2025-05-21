@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             InventarisSeeder::class,   // Baru Data Inventaris
             LaboratoriumSeeder::class,
             SettingSeeder::class,
+            LabBookingSeeder::class,
             // Tambahkan seeder lain di sini jika ada
         ]);
     }
