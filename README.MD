@@ -82,21 +82,13 @@ npm run dev
 
 ---
 
-## 👥 Kontribusi  
-Kontribusi sangat terbuka!  
-1. Fork repository ini  
-2. Buat branch fitur baru (`git checkout -b fitur-anda`)  
-3. Commit perubahan (`git commit -am 'Tambah fitur'`)  
-4. Push ke branch (`git push origin fitur-anda`)  
-5. Buat Pull Request
-
----
-
 ## 📄 Lisensi  
 Proyek ini menggunakan lisensi [MIT](https://opensource.org/licenses/MIT).
 
 ---
 
-## 📬 Kontak  
-Untuk pertanyaan dan diskusi, hubungi:  
-📧 labsys.support@example.com  
+## 📬 member:  Muhammad Hanif             2308107010043
+                Rahmad Hidayat Tsunami    2308107010051
+                Hamdan Dwi Sukron         2308107010065
+                Muhammad Reky             2308107010069
+                Aska Shahira              2308107010075 
