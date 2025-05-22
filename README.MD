@@ -1,54 +1,102 @@
-# React + TypeScript + Vite
+# LabSys - Sistem Informasi Laboratorium
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 📌 Deskripsi  
+**LabSys** adalah sistem informasi laboratorium berbasis web yang dirancang untuk membantu pengelolaan barang-barang inventaris, proses peminjaman dan pengembalian barang, serta manajemen laboratorium. Aplikasi ini memudahkan pengguna laboratorium dalam mencatat, melacak, dan mengelola aset serta aktivitas peminjaman dengan lebih efisien.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Fitur Utama  
+- 🔧 **Inventaris Barang:** Tambah, ubah, hapus, dan lihat data barang laboratorium  
+- 📦 **Peminjaman Barang:** Proses peminjaman, pengembalian, dan validasi status barang  
+- 🧪 **Manajemen Laboratorium:** Kelola informasi laboratorium tempat penyimpanan barang  
+- 🗂️ **Kategori Barang:** Pengelompokan barang berdasarkan kategori tertentu  
+- 📊 **Riwayat Peminjaman:** Catatan lengkap seluruh transaksi peminjaman dan pengembalian barang
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Teknologi yang Digunakan  
+- **Backend:** Laravel 10 / Express + TypeScript  
+- **Database:** MySQL / PostgreSQL  
+- **Frontend:** (Opsional, bisa pakai Vue.js / React / Blade)  
+- **API:** RESTful API
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+---
+
+## 🚀 Instalasi dan Setup
+
+### 1. Clone Repository  
+```bash
+git clone https://github.com/username/labsys.git
+cd labsys
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+### 2. Instalasi Dependency  
+#### Untuk Laravel
+```bash
+composer install
 ```
+#### Untuk Express (jika backend-nya Node.js)
+```bash
+npm install
+```
+
+### 3. Konfigurasi Environment  
+Salin file `.env.example` menjadi `.env`  
+```bash
+cp .env.example .env
+```
+Lalu ubah konfigurasi seperti nama database, user, password, dan lainnya sesuai pengaturan lokal.
+
+### 4. Generate Key dan Migrasi Database (Laravel)
+```bash
+php artisan key:generate
+php artisan migrate --seed
+```
+
+### 5. Jalankan Server
+#### Laravel
+```bash
+php artisan serve
+```
+#### Express
+```bash
+npm run dev
+```
+
+---
+
+## 📡 Contoh Endpoint API
+
+| Method | Endpoint                | Deskripsi                        |
+|--------|-------------------------|----------------------------------|
+| GET    | /api/inventaris         | Menampilkan semua barang         |
+| POST   | /api/inventaris         | Menambah barang baru             |
+| PUT    | /api/inventaris/{id}    | Mengubah data barang             |
+| DELETE | /api/inventaris/{id}    | Menghapus barang                 |
+| POST   | /api/peminjaman         | Membuat transaksi peminjaman     |
+| GET    | /api/peminjaman         | Menampilkan semua peminjaman     |
+| POST   | /api/pengembalian       | Mengembalikan barang             |
+| GET    | /api/riwayat            | Menampilkan riwayat peminjaman   |
+
+> ⚠️ Semua endpoint dilindungi oleh autentikasi token (Bearer Token)
+
+---
+
+## 👥 Kontribusi  
+Kontribusi sangat terbuka!  
+1. Fork repository ini  
+2. Buat branch fitur baru (`git checkout -b fitur-anda`)  
+3. Commit perubahan (`git commit -am 'Tambah fitur'`)  
+4. Push ke branch (`git push origin fitur-anda`)  
+5. Buat Pull Request
+
+---
+
+## 📄 Lisensi  
+Proyek ini menggunakan lisensi [MIT](https://opensource.org/licenses/MIT).
+
+---
+
+## 📬 Kontak  
+Untuk pertanyaan dan diskusi, hubungi:  
+📧 labsys.support@example.com  
